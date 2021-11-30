@@ -1,3 +1,5 @@
+from sys import stderr
+
 from parser import Function, Expression, Scope
 from lexer import Token, TokenType
 
@@ -76,6 +78,8 @@ class Interpreter:
             print(*(self.run(arg, scope) for arg in expr.args))
             return None
         elif op == 'def':
+            if expr.args[0] in scope:
+                print(f'Warning: redefining `{expr.args[0]}`', file=stderr)
             if len(expr.args) == 2: # it's a constant declaration
                 scope.add(expr.args[0], self.run(expr.args[1], scope))
             else: # it's a function declaration
