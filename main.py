@@ -18,7 +18,7 @@ def main_interactive():
 def main_file(file_name):
     with open(file_name, 'r') as f:
         for instruction in parser.parse(lexer.make_tokens(f.read())):
-            print(interpreter.run(instruction, global_scope))
+            interpreter.run(instruction, global_scope)
 
 if __name__ == '__main__':
     setrecursionlimit(1000000000)
@@ -32,7 +32,7 @@ if __name__ == '__main__':
     }
     for op in '+-=<>*/':
         global_scope.add(op, op)
-    for op in ('div', 'mod', 'def', 'if', 'cond', 'or', 'and', 'not'):
+    for op in ('print', 'div', 'mod', 'def', 'if', 'cond', 'or', 'and', 'not'):
         global_scope.add(op, op)
 
     if len(argv) > 1:

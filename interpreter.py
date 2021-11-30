@@ -72,6 +72,9 @@ class Interpreter:
             if len(expr.args) != 1:
                 raise Exception('`not` takes exactly one argument')
             return not self.run(expr.args[0], scope)
+        elif op == 'print':
+            print(*(self.run(arg, scope) for arg in expr.args))
+            return None
         elif op == 'def':
             scope.add(expr.args[0], Function(expr.args[0], expr.args[1], expr.args[2]))
             return expr.args[0]
@@ -89,7 +92,8 @@ class Interpreter:
                 subscope = Scope(scope)
                 for i in range(len(expr.args)):
                     subscope.add(scope[op].args[i], self.run(expr.args[i], scope))
-                op = scope[op].body
-                return self.run(op, subscope)
+                for o in scope[op].body[:-1]:
+                    self.run(o, subscope)
+                return self.run(scope[op].body[-1], subscope)
             else:
                 raise Exception(f'`{op}` does not exist so it cannot be called')

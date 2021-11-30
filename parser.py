@@ -79,9 +79,13 @@ class Parser:
         
         self.step()
 
-        result = Expression(tok, [name, args, self.expr()])
+        body = []
+        while self.tok is not None and self.tok.type != TokenType.RIGHT_PAREN:
+            body.append(self.expr())
 
-        if self.tok is None or self.tok.type != TokenType.RIGHT_PAREN:
+        result = Expression(tok, [name, args, body])
+
+        if self.tok is None:
             raise Exception('`)` expected after function definition')
         
         self.step()

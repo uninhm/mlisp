@@ -7,5 +7,5 @@
        double)
    x))
 
-(f 5)
-(f 20)
+(print (f 5))
+(print (f 20))
