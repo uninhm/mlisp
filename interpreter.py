@@ -76,7 +76,10 @@ class Interpreter:
             print(*(self.run(arg, scope) for arg in expr.args))
             return None
         elif op == 'def':
-            scope.add(expr.args[0], Function(expr.args[0], expr.args[1], expr.args[2]))
+            if len(expr.args) == 2: # it's a constant declaration
+                scope.add(expr.args[0], self.run(expr.args[1], scope))
+            else: # it's a function declaration
+                scope.add(expr.args[0], Function(expr.args[0], expr.args[1], expr.args[2]))
             return expr.args[0]
         elif op == 'if':
             if self.run(expr.args[0], scope):

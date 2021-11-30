@@ -60,37 +60,44 @@ class Parser:
     def def_expr(self):
         tok = self.tok
         self.step()
-        if self.tok.type != TokenType.LEFT_PAREN:
-            raise Exception('`(` expected in function definition')
+        if self.tok.type == TokenType.LEFT_PAREN: # it's a function
+            self.step()
+            if self.tok.type != TokenType.IDENTIFIER:
+                raise Exception('function name expected')
 
-        self.step()
-        if self.tok.type != TokenType.IDENTIFIER:
-            raise Exception('function name expected')
+            name = self.tok.value
+            self.step()
+            args = []
+            while self.tok is not None and self.tok.type == TokenType.IDENTIFIER:
+                args.append(self.tok.value)
+                self.step()
 
-        name = self.tok.value
-        self.step()
-        args = []
-        while self.tok is not None and self.tok.type == TokenType.IDENTIFIER:
-            args.append(self.tok.value)
+            if self.tok is None or self.tok.type != TokenType.RIGHT_PAREN:
+                raise Exception('`)` expected in function definition')
+            
             self.step()
 
-        if self.tok is None or self.tok.type != TokenType.RIGHT_PAREN:
-            raise Exception('`)` expected in function definition')
-        
-        self.step()
+            body = []
+            while self.tok is not None and self.tok.type != TokenType.RIGHT_PAREN:
+                body.append(self.expr())
+                
+            if self.tok is None:
+                raise Exception('`)` expected after function definition')
 
-        body = []
-        while self.tok is not None and self.tok.type != TokenType.RIGHT_PAREN:
-            body.append(self.expr())
+            self.step()
 
-        result = Expression(tok, [name, args, body])
+            return Expression(tok, [name, args, body])
+        else: # it's a constant
+            if self.tok.type != TokenType.IDENTIFIER:
+                raise Exception('constant name expected')
+            name = self.tok.value
+            self.step()
+            value = self.expr()
+            if self.tok is None or self.tok.type != TokenType.RIGHT_PAREN:
+                raise Exception('`)` expected after constant definition')
+            self.step()
+            return Expression(tok, [name, value])
 
-        if self.tok is None:
-            raise Exception('`)` expected after function definition')
-        
-        self.step()
-
-        return result
 
 
     def if_expr(self):
