@@ -1,19 +1,24 @@
 from sys import argv, setrecursionlimit
 
-from lexer import Lexer
+from lexer import Lexer, UnexpectedEOF
 from parser import Parser, Scope
 from interpreter import Interpreter
 
 def main_interactive():
     tokens = []
-    while (line := input('>>> ')) != 'exit':
+    prompt = '>>> '
+    while (line := input(prompt)) != 'exit':
+        if len(tokens) != 0:
+            tokens.pop() # pop EOF
         tokens += lexer.make_tokens(line)
-        for op in parser.parse(tokens):
-            if op == 'WFMT':
-                continue
-            if op is not None:
-                print(interpreter.run(op, global_scope))
+        try:
+            for op in parser.parse(tokens):
+                if op is not None:
+                    print(interpreter.run(op, global_scope))
             tokens = []
+            prompt = '>>> '
+        except UnexpectedEOF:
+            prompt = '... '
 
 def main_file(file_name):
     with open(file_name, 'r') as f:

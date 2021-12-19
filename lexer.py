@@ -15,6 +15,9 @@ class TokenType(Enum):
     # End of file.
     EOF = 'EOF'
 
+class UnexpectedEOF(RuntimeError):
+    pass
+
 class Token:
     def __init__(self, type, value=None):
         self.type = type
@@ -28,6 +31,11 @@ class Token:
 
     def __repr__(self):
         return self.__str__()
+    
+    def check(self, tokentype):
+        if self.type == TokenType.EOF != tokentype:
+            raise UnexpectedEOF()
+        return self.type == tokentype
 
 class Lexer:
     def step(self):
@@ -68,4 +76,5 @@ class Lexer:
                     self.step()
                 tokens.append(Token(TokenType.IDENTIFIER, ident))
 
+        tokens.append(Token(TokenType.EOF))
         return tokens

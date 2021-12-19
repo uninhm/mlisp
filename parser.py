@@ -60,40 +60,40 @@ class Parser:
     def def_expr(self):
         tok = self.tok
         self.step()
-        if self.tok.type == TokenType.LEFT_PAREN: # it's a function
+        if self.tok.check(TokenType.LEFT_PAREN): # it's a function
             self.step()
-            if self.tok.type != TokenType.IDENTIFIER:
+            if not self.tok.check(TokenType.IDENTIFIER):
                 raise Exception('function name expected')
 
             name = self.tok.value
             self.step()
             args = []
-            while self.tok is not None and self.tok.type == TokenType.IDENTIFIER:
+            while self.tok.check(TokenType.IDENTIFIER):
                 args.append(self.tok.value)
                 self.step()
 
-            if self.tok is None or self.tok.type != TokenType.RIGHT_PAREN:
+            if not self.tok.check(TokenType.RIGHT_PAREN):
                 raise Exception('`)` expected in function definition')
             
             self.step()
 
             body = []
-            while self.tok is not None and self.tok.type != TokenType.RIGHT_PAREN:
+            while not self.tok.check(TokenType.RIGHT_PAREN):
                 body.append(self.expr())
                 
-            if self.tok is None:
+            if not self.tok.check(TokenType.RIGHT_PAREN):
                 raise Exception('`)` expected after function definition')
 
             self.step()
 
             return Expression(tok, [name, args, body])
         else: # it's a constant
-            if self.tok.type != TokenType.IDENTIFIER:
+            if not self.tok.check(TokenType.IDENTIFIER):
                 raise Exception('constant name expected')
             name = self.tok.value
             self.step()
             value = self.expr()
-            if self.tok is None or self.tok.type != TokenType.RIGHT_PAREN:
+            if not self.tok.check(TokenType.RIGHT_PAREN):
                 raise Exception('`)` expected after constant definition')
             self.step()
             return Expression(tok, [name, value])
@@ -107,7 +107,7 @@ class Parser:
         if_true = self.expr()
         if_false = self.expr()
 
-        if self.tok is None or self.tok.type != TokenType.RIGHT_PAREN:
+        if not self.tok.check(TokenType.RIGHT_PAREN):
             raise Exception('`)` expected after if expression')
         
         self.step()
@@ -118,12 +118,10 @@ class Parser:
         pass
     
     def expr(self):
-        if self.tok == None:
-            return None
-        if self.tok.type == TokenType.LEFT_PAREN:
+        if self.tok.check(TokenType.LEFT_PAREN):
             self.step()
-            if self.tok is None:
-                return 'WFMT'
+            if not self.tok.check(TokenType.IDENTIFIER):
+                raise Exception("Identifier expected at function call.")
             if self.tok.value == 'def':
                 return self.def_expr()
             elif self.tok.value == 'if':
@@ -132,9 +130,7 @@ class Parser:
                 return self.cond_expr()
             op = self.expr()
             args = []
-            while self.tok is None or self.tok.type != TokenType.RIGHT_PAREN:
-                if self.tok is None:
-                    return 'WFMT'
+            while not self.tok.check(TokenType.RIGHT_PAREN):
                 args.append(self.expr())
             self.step()
             return Expression(op, args)
@@ -148,5 +144,5 @@ class Parser:
         self.idx = -1
         self.step()
 
-        while self.idx < len(self.tokens):
+        while not self.tok.check(TokenType.EOF):
             yield self.expr()
