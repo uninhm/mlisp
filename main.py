@@ -1,24 +1,33 @@
 from sys import argv, setrecursionlimit
+import cmd
 
 from lexer import Lexer, UnexpectedEOF
 from parser import Parser, Scope
 from interpreter import Interpreter
 
-def main_interactive():
-    tokens = []
+class CmdMain(cmd.Cmd):
     prompt = '>>> '
-    while (line := input(prompt)) != 'exit':
-        if len(tokens) != 0:
-            tokens.pop() # pop EOF
-        tokens += lexer.make_tokens(line)
+    tokens = []
+
+    def default(self, line):
+        if len(self.tokens) != 0:
+            self.tokens.pop() # pop EOF
+        self.tokens += lexer.make_tokens(line)
         try:
-            for op in parser.parse(tokens):
-                if op is not None:
-                    print(interpreter.run(op, global_scope))
-            tokens = []
-            prompt = '>>> '
+            for op in parser.parse(self.tokens):
+                if op is not None and \
+                 (res := interpreter.run(op, global_scope)) is not None:
+                    print(res)
+            self.tokens = []
+            self.prompt = '>>> '
         except UnexpectedEOF:
-            prompt = '... '
+            self.prompt = '... '
+
+    def emptyline(self):
+        pass
+
+    def do_exit(self, line):
+        return True
 
 def main_file(file_name):
     with open(file_name, 'r') as f:
@@ -43,4 +52,4 @@ if __name__ == '__main__':
     if len(argv) > 1:
         main_file(argv[1])
     else:
-        main_interactive()
+        CmdMain().cmdloop()
