@@ -120,8 +120,6 @@ class Parser:
     def expr(self):
         if self.tok.check(TokenType.LEFT_PAREN):
             self.step()
-            if not self.tok.check(TokenType.IDENTIFIER):
-                raise Exception("Identifier expected at function call.")
             if self.tok.value == 'def':
                 return self.def_expr()
             elif self.tok.value == 'if':
