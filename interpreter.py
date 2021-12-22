@@ -116,3 +116,11 @@ class Interpreter:
         elif op == 'print':
             print(*(self.run(arg, scope) for arg in expr.args))
             return None
+        elif op == 'input':
+            if len(expr.args) > 1:
+                raise Exception('`input` takes at most one argument')
+            if len(expr.args) == 0:
+                return input()
+            else:
+                return input(self.run(expr.args[0], scope))
+

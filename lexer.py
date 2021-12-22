@@ -1,7 +1,7 @@
 from enum import Enum
 
 KEYWORDS = {
-    'print', 'div', 'mod', 'def',
+    'input', 'print', 'div', 'mod', 'def',
     'if', 'cond', 'or', 'and', 'not',
     '+', '-', '*', '/', '=', '<', '>'
 }
