@@ -113,6 +113,8 @@ class Interpreter:
             if len(expr.args) != 1:
                 raise Exception('`not` takes exactly one argument')
             return not self.run(expr.args[0], scope)
+        # TODO: Replace print and input with functions
+        # in the stdlib, using the eventual file managing
         elif op == 'print':
             print(*(self.run(arg, scope) for arg in expr.args))
             return None
