@@ -7,6 +7,12 @@ class Function:
     def __init__(self, args, body):
         self.args = args
         self.body = body
+    
+    def __str__(self) -> str:
+        return "Function"
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
 class Interpreter:
     def run(self, expr, scope):

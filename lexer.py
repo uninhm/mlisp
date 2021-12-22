@@ -77,6 +77,14 @@ class Lexer:
                     tokens.append(Token(TokenType.NUMBER, float(num)))
                 else:
                     tokens.append(Token(TokenType.NUMBER, int(num)))
+            elif self.char == '"':
+                string = ''
+                self.step()
+                while self.char != '"':
+                    string += self.char
+                    self.step()
+                self.step()
+                tokens.append(Token(TokenType.STRING, string))
             else:
                 ident = ''
                 while self.char not in ' \t\n()' and self.char != 'EOF':

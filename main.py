@@ -21,7 +21,7 @@ class CmdMain(cmd.Cmd):
                 op = pres.expr
                 if op is not None and \
                  (res := interpreter.run(op, global_scope)) is not None:
-                    print(res)
+                    print(repr(res))
             self.tokens = []
             self.prompt = '>>> '
         except UnexpectedEOF:

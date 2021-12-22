@@ -114,7 +114,7 @@ class LangError:
         self.token = token
 
     def __str__(self):
-        return '{errname}({msg}, {token})'.format(
+        return '{errname}: {msg}, {token}'.format(
             errname=self.__class__.__name__,
             msg=self.msg,
             token=self.token
@@ -248,7 +248,8 @@ class Parser:
             tok = self.tok
             self.step()
             return ParseResult(Keyword(tok.value))
-        elif self.tok.check(TokenType.NUMBER):
+        elif self.tok.check(TokenType.NUMBER) or\
+             self.tok.check(TokenType.STRING):
             tok = self.tok
             self.step()
             return ParseResult(Literal(tok.value))
