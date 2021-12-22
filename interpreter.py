@@ -1,24 +1,57 @@
 from sys import stderr
 
-from parser import Function, Expression, Scope
-from lexer import Token, TokenType
+from parser import Scope, Keyword, IdentifierRef, Literal, FunctionDefinition, FunctionCall, If, ConstantDefinition
+# from lexer import Token, TokenType
+
+class Function:
+    def __init__(self, args, body):
+        self.args = args
+        self.body = body
 
 class Interpreter:
     def run(self, expr, scope):
-        if isinstance(expr, Token):
-            if expr.type == TokenType.NUMBER:
-                return expr.value
-            elif expr.type == TokenType.IDENTIFIER:
-                if expr.value in scope:
-                    return scope[expr.value]
-                else:
-                    return None
+        if isinstance(expr, Literal):
+            return expr.value
+        elif isinstance(expr, IdentifierRef):
+            if expr.name in scope:
+                return scope[expr.name]
             else:
-                return expr
+                raise Exception("Undefined identifier: " + expr.name)
+        elif isinstance(expr, FunctionDefinition):
+            if expr.name in scope:
+                print(f'Warning: redefining `{expr.name}`', file=stderr)
+            func = Function(expr.args, expr.body)
+            scope.add(expr.name, func)
+            return func
+        elif isinstance(expr, ConstantDefinition):
+            if expr.name in scope:
+                print(f'Warning: redefining `{expr.name}`', file=stderr)
+            val = self.run(expr.value, scope)
+            scope.add(expr.name, val)
+            return val
+        elif isinstance(expr, If):
+            if self.run(expr.condition, scope):
+                return self.run(expr.body, scope)
+            else:
+                return self.run(expr.else_body, scope)
+        elif isinstance(expr, Keyword):
+            return expr.name
+        elif isinstance(expr, FunctionCall) and not isinstance(expr.op, Keyword):
+            op = self.run(expr.op, scope)
+            if not isinstance(op, Function):
+                raise Exception(f'`{op}` is not callable')
+            if len(expr.args) != len(op.args):
+                raise Exception(f'`{op}` expected {len(op.args)} arguments, got {len(expr.args)}')
+            subscope = Scope(scope)
+            for i in range(len(expr.args)):
+                subscope.add(op.args[i], self.run(expr.args[i], scope))
+            for o in op.body[:-1]:
+                self.run(o, subscope)
+            return self.run(op.body[-1], subscope)
 
-        op = self.run(expr.op, scope)
-        if isinstance(op, Function):
-            op = op.name
+        assert isinstance(expr.op, Keyword)
+
+        op = expr.op.name
         if op == '+':
             s = 0
             for arg in expr.args:
@@ -40,7 +73,7 @@ class Interpreter:
                 d /= self.run(arg, scope)
             return d
         elif op == 'div':
-            d = self.run(expr.args[0])
+            d = self.run(expr.args[0], scope)
             for arg in expr.args[1:]:
                 d //= self.run(arg, scope)
             return d
@@ -77,30 +110,3 @@ class Interpreter:
         elif op == 'print':
             print(*(self.run(arg, scope) for arg in expr.args))
             return None
-        elif op == 'def':
-            if expr.args[0] in scope:
-                print(f'Warning: redefining `{expr.args[0]}`', file=stderr)
-            if len(expr.args) == 2: # it's a constant declaration
-                scope.add(expr.args[0], self.run(expr.args[1], scope))
-            else: # it's a function declaration
-                scope.add(expr.args[0], Function(expr.args[0], expr.args[1], expr.args[2]))
-            return expr.args[0]
-        elif op == 'if':
-            if self.run(expr.args[0], scope):
-                return self.run(expr.args[1], scope)
-            else:
-                return self.run(expr.args[2], scope)
-        else:
-            if op in scope:
-                if not isinstance(scope[op], Function):
-                    raise Exception(f'`{op}` is not callable')
-                if len(expr.args) != len(scope[op].args):
-                    raise Exception(f'`{op}` expected {len(scope[op].args)} arguments, got {len(expr.args)}')
-                subscope = Scope(scope)
-                for i in range(len(expr.args)):
-                    subscope.add(scope[op].args[i], self.run(expr.args[i], scope))
-                for o in scope[op].body[:-1]:
-                    self.run(o, subscope)
-                return self.run(scope[op].body[-1], subscope)
-            else:
-                raise Exception(f'`{op}` does not exist so it cannot be called')

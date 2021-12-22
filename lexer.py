@@ -1,5 +1,11 @@
 from enum import Enum
 
+KEYWORDS = {
+    'print', 'div', 'mod', 'def',
+    'if', 'cond', 'or', 'and', 'not',
+    '+', '-', '*', '/', '=', '<', '>'
+}
+
 class TokenType(Enum):
     # Single-character tokens.
     LEFT_PAREN = '('
@@ -11,6 +17,8 @@ class TokenType(Enum):
     IDENTIFIER = 'IDENTIFIER'
     STRING = 'STRING'
     NUMBER = 'NUMBER'
+
+    KEYWORD = 'KEYWORD'
 
     # End of file.
     EOF = 'EOF'
@@ -74,7 +82,10 @@ class Lexer:
                 while self.char not in ' \t\n()' and self.char != 'EOF':
                     ident += self.char
                     self.step()
-                tokens.append(Token(TokenType.IDENTIFIER, ident))
+                kind = TokenType.IDENTIFIER
+                if ident in KEYWORDS:
+                    kind = TokenType.KEYWORD
+                tokens.append(Token(kind, ident))
 
         tokens.append(Token(TokenType.EOF))
         return tokens

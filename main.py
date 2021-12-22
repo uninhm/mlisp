@@ -14,7 +14,11 @@ class CmdMain(cmd.Cmd):
             self.tokens.pop() # pop EOF
         self.tokens += lexer.make_tokens(line)
         try:
-            for op in parser.parse(self.tokens):
+            for pres in parser.parse(self.tokens):
+                if pres.error:
+                    print(pres.error)
+                    break
+                op = pres.expr
                 if op is not None and \
                  (res := interpreter.run(op, global_scope)) is not None:
                     print(res)
@@ -26,13 +30,16 @@ class CmdMain(cmd.Cmd):
     def emptyline(self):
         pass
 
-    def do_exit(self, line):
+    def do_exit(self, _):
         return True
 
 def main_file(file_name):
     with open(file_name, 'r') as f:
-        for instruction in parser.parse(lexer.make_tokens(f.read())):
-            interpreter.run(instruction, global_scope)
+        for pres in parser.parse(lexer.make_tokens(f.read())):
+            if pres.error:
+                print(pres.error)
+                break
+            interpreter.run(pres.expr, global_scope)
 
 if __name__ == '__main__':
     setrecursionlimit(1000000000)
@@ -44,10 +51,6 @@ if __name__ == '__main__':
         'true': True,
         'false': False,
     }
-    for op in '+-=<>*/':
-        global_scope.add(op, op)
-    for op in ('print', 'div', 'mod', 'def', 'if', 'cond', 'or', 'and', 'not'):
-        global_scope.add(op, op)
 
     if len(argv) > 1:
         main_file(argv[1])
