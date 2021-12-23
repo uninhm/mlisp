@@ -125,4 +125,17 @@ class Interpreter:
                 return input()
             else:
                 return input(self.run(expr.args[0], scope))
-
+        elif op == 'len':
+            if len(expr.args) != 1:
+                raise Exception('`len` takes exactly one argument')
+            return len(self.run(expr.args[0], scope))
+        elif op == 'idx':
+            # TODO: Find a better way to do this
+            # probably when the language have types
+            if len(expr.args) != 2:
+                raise Exception('`len` takes exactly two arguments')
+            a = self.run(expr.args[0], scope)
+            if isinstance(a, str):
+                return ord(a[self.run(expr.args[1], scope)])
+            else:
+                return a[self.run(expr.args[1], scope)]

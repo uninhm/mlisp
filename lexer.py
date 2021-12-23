@@ -1,7 +1,7 @@
 from enum import Enum
 
 KEYWORDS = {
-    'input', 'print', 'div', 'mod', 'def',
+    'idx', 'len', 'input', 'print', 'div', 'mod', 'def',
     'if', 'cond', 'or', 'and', 'not',
     '+', '-', '*', '/', '=', '<', '>'
 }
@@ -17,6 +17,7 @@ class TokenType(Enum):
     IDENTIFIER = 'IDENTIFIER'
     STRING = 'STRING'
     NUMBER = 'NUMBER'
+    CHAR = 'CHAR'
 
     KEYWORD = 'KEYWORD'
 
@@ -85,6 +86,11 @@ class Lexer:
                     self.step()
                 self.step()
                 tokens.append(Token(TokenType.STRING, string))
+            elif self.char == '?':
+                self.step()
+                char = self.char
+                self.step()
+                tokens.append(Token(TokenType.CHAR, ord(char)))
             else:
                 ident = ''
                 while self.char not in ' \t\n()' and self.char != 'EOF':

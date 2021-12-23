@@ -249,7 +249,8 @@ class Parser:
             self.step()
             return ParseResult(Keyword(tok.value))
         elif self.tok.check(TokenType.NUMBER) or\
-             self.tok.check(TokenType.STRING):
+             self.tok.check(TokenType.STRING) or\
+             self.tok.check(TokenType.CHAR):
             tok = self.tok
             self.step()
             return ParseResult(Literal(tok.value))
