@@ -1,27 +1,5 @@
 from lexer import TokenType
 
-class Scope:
-    def __init__(self, parent=None):
-        self.parent = parent
-        self.content = {}
-
-    def add(self, name, value):
-        self.content[name] = value
-
-    def get(self, name):
-        if name in self.content:
-            return self.content[name]
-        elif self.parent:
-            return self.parent.get(name)
-        else:
-            return None
-    
-    def __contains__(self, name):
-        return name in self.content or (self.parent and name in self.parent)
-    
-    def __getitem__(self, name):
-        return self.get(name)
-
 class Expression:
     def __init__(self, pos):
         self.pos = pos
