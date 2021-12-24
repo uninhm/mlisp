@@ -18,7 +18,7 @@ class CmdMain(cmd.Cmd):
                 if pres.error:
                     print(pres.error)
                     break
-                op = pres.expr
+                op = pres.result
                 if op is not None and \
                  (res := interpreter.run(op, global_scope)) is not None:
                     print(repr(res))
@@ -39,7 +39,7 @@ def main_file(file_name):
             if pres.error:
                 print(pres.error)
                 break
-            interpreter.run(pres.expr, global_scope)
+            interpreter.run(pres.result, global_scope)
 
 if __name__ == '__main__':
     setrecursionlimit(1000000000)
