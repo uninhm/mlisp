@@ -23,7 +23,8 @@ class Scope:
         return self.get(name)
 
 class Expression:
-    #TODO: Add position
+    def __init__(self, pos):
+        self.pos = pos
 
     def __str__(self):
         pass
@@ -32,7 +33,8 @@ class Expression:
         return self.__str__()
 
 class FunctionCall(Expression):
-    def __init__(self, op, args):
+    def __init__(self, pos, op, args):
+        super().__init__(pos)
         self.op = op
         self.args = args
     
@@ -43,7 +45,8 @@ class FunctionCall(Expression):
         )
     
 class FunctionDefinition(Expression):
-    def __init__(self, name, args, body):
+    def __init__(self, pos, name, args, body):
+        super().__init__(pos)
         self.name = name
         self.args = args
         self.body = body
@@ -56,7 +59,8 @@ class FunctionDefinition(Expression):
         )
 
 class If(Expression):
-    def __init__(self, condition, body, else_body=None):
+    def __init__(self, pos, condition, body, else_body=None):
+        super().__init__(pos)
         self.condition = condition
         self.body = body
         self.else_body = else_body
@@ -69,7 +73,8 @@ class If(Expression):
         )
 
 class IdentifierRef(Expression):
-    def __init__(self, name):
+    def __init__(self, pos, name):
+        super().__init__(pos)
         self.name = name
     
     def __str__(self):
@@ -78,7 +83,8 @@ class IdentifierRef(Expression):
         )
 
 class Keyword(Expression):
-    def __init__(self, name):
+    def __init__(self, pos, name):
+        super().__init__(pos)
         self.name = name
 
     def __str__(self):
@@ -89,7 +95,8 @@ class Keyword(Expression):
 class Literal(Expression):
     #TODO: Add type
 
-    def __init__(self, value):
+    def __init__(self, pos, value):
+        super().__init__(pos)
         self.value = value
     
     def __str__(self):
@@ -98,7 +105,8 @@ class Literal(Expression):
         )
 
 class ConstantDefinition(Expression):
-    def __init__(self, name, value):
+    def __init__(self, pos, name, value):
+        super().__init__(pos)
         self.name = name
         self.value = value
 
@@ -155,6 +163,7 @@ class Parser:
         return ParseResult(None, ParsingError(msg, self.tok.pos))
     
     def def_expr(self) -> ParseResult:
+        pos = self.tok.pos
         self.step()
         if self.tok.check(TokenType.LEFT_PAREN): # it's a function
             self.step()
@@ -185,7 +194,7 @@ class Parser:
 
             self.step()
 
-            return ParseResult(FunctionDefinition(name, args, body))
+            return ParseResult(FunctionDefinition(pos, name, args, body))
         elif self.tok.check(TokenType.IDENTIFIER): # it's a constant
             name = self.tok.value
             self.step()
@@ -195,13 +204,14 @@ class Parser:
             if not self.tok.check(TokenType.RIGHT_PAREN):
                 return self.errorresult('`)` expected after constant definition')
             self.step()
-            return ParseResult(ConstantDefinition(name, value.result))
+            return ParseResult(ConstantDefinition(pos, name, value.result))
         else:
             return self.errorresult('invalid token in definition')
 
 
 
     def if_expr(self):
+        pos = self.tok.pos
         self.step()
         condition = self.expr()
         if condition.error:
@@ -218,7 +228,7 @@ class Parser:
         
         self.step()
 
-        return ParseResult(If(condition.result, body.result, else_body.result))
+        return ParseResult(If(pos, condition.result, body.result, else_body.result))
 
     def cond_expr(self):
         return self.errorresult('conditional expression not implemented')
@@ -232,6 +242,7 @@ class Parser:
                 return self.if_expr()
             elif self.tok.value == 'cond':
                 return self.cond_expr()
+            pos = self.tok.pos
             op = self.expr()
             if op.error:
                 return op
@@ -242,21 +253,21 @@ class Parser:
                     return e
                 args.append(e.result)
             self.step()
-            return ParseResult(FunctionCall(op.result, args))
+            return ParseResult(FunctionCall(pos, op.result, args))
         elif self.tok.check(TokenType.IDENTIFIER):
             tok = self.tok
             self.step()
-            return ParseResult(IdentifierRef(tok.value))
+            return ParseResult(IdentifierRef(tok.pos, tok.value))
         elif self.tok.check(TokenType.KEYWORD):
             tok = self.tok
             self.step()
-            return ParseResult(Keyword(tok.value))
+            return ParseResult(Keyword(tok.pos, tok.value))
         elif self.tok.check(TokenType.NUMBER) or\
              self.tok.check(TokenType.STRING) or\
              self.tok.check(TokenType.CHAR):
             tok = self.tok
             self.step()
-            return ParseResult(Literal(tok.value))
+            return ParseResult(Literal(tok.pos, tok.value))
         else:
             return self.errorresult('Unknown expression')
     
