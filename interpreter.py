@@ -22,7 +22,7 @@ class Interpreter:
             if expr.name in scope:
                 return scope[expr.name]
             else:
-                raise Exception("Undefined identifier: " + expr.name)
+                raise Exception(f"{expr.pos}: Undefined identifier: {expr.name}")
         elif isinstance(expr, FunctionDefinition):
             if expr.name in scope:
                 print(f'Warning: redefining `{expr.name}`', file=stderr)
@@ -45,9 +45,9 @@ class Interpreter:
         elif isinstance(expr, FunctionCall) and not isinstance(expr.op, Keyword):
             op = self.run(expr.op, scope)
             if not isinstance(op, Function):
-                raise Exception(f'`{op}` is not callable')
+                raise Exception(f'{expr.pos}: `{op}` is not callable')
             if len(expr.args) != len(op.args):
-                raise Exception(f'`{op}` expected {len(op.args)} arguments, got {len(expr.args)}')
+                raise Exception(f'{expr.pos}: `{op}` expected {len(op.args)} arguments, got {len(expr.args)}')
             subscope = Scope(scope)
             for i in range(len(expr.args)):
                 subscope.add(op.args[i], self.run(expr.args[i], scope))
@@ -85,19 +85,19 @@ class Interpreter:
             return d
         elif op == 'mod':
             if len(expr.args) != 2:
-                raise Exception('`mod` takes exactly two arguments')
+                raise Exception(f'{expr.pos}: `mod` takes exactly two arguments')
             return self.run(expr.args[0], scope) % self.run(expr.args[1], scope)
         elif op == '=':
             if len(expr.args) != 2:
-                raise Exception('= takes exactly two arguments')
+                raise Exception(f'{expr.pos}: = takes exactly two arguments')
             return self.run(expr.args[0], scope) == self.run(expr.args[1], scope)
         elif op == '<':
             if len(expr.args) != 2:
-                raise Exception('< takes exactly two arguments')
+                raise Exception(f'{expr.pos}: < takes exactly two arguments')
             return self.run(expr.args[0], scope) < self.run(expr.args[1], scope)
         elif op == '>':
             if len(expr.args) != 2:
-                raise Exception('> takes exactly two arguments')
+                raise Exception(f'{expr.pos}: > takes exactly two arguments')
             return self.run(expr.args[0], scope) > self.run(expr.args[1], scope)
         elif op == 'or':
             for arg in expr.args:
@@ -111,7 +111,7 @@ class Interpreter:
             return True
         elif op == 'not':
             if len(expr.args) != 1:
-                raise Exception('`not` takes exactly one argument')
+                raise Exception(f'{expr.pos}: `not` takes exactly one argument')
             return not self.run(expr.args[0], scope)
         # TODO: Replace print and input with functions
         # in the stdlib, using the eventual file managing
@@ -120,20 +120,20 @@ class Interpreter:
             return None
         elif op == 'input':
             if len(expr.args) > 1:
-                raise Exception('`input` takes at most one argument')
+                raise Exception(f'{expr.pos}: `input` takes at most one argument')
             if len(expr.args) == 0:
                 return input()
             else:
                 return input(self.run(expr.args[0], scope))
         elif op == 'len':
             if len(expr.args) != 1:
-                raise Exception('`len` takes exactly one argument')
+                raise Exception(f'{expr.pos}: `len` takes exactly one argument')
             return len(self.run(expr.args[0], scope))
         elif op == 'idx':
             # TODO: Find a better way to do this
             # probably when the language have types
             if len(expr.args) != 2:
-                raise Exception('`len` takes exactly two arguments')
+                raise Exception(f'{expr.pos}: `idx` takes exactly two arguments')
             a = self.run(expr.args[0], scope)
             if isinstance(a, str):
                 return ord(a[self.run(expr.args[1], scope)])
