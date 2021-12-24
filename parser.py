@@ -1,4 +1,4 @@
-from lexer import Token, TokenType
+from lexer import TokenType
 
 class Scope:
     def __init__(self, parent=None):
@@ -114,10 +114,10 @@ class LangError:
         self.token = token
 
     def __str__(self):
-        return '{errname}: {msg}, {token}'.format(
+        return '{pos}: {errname}: {msg}'.format(
+            pos=self.token.pos,
             errname=self.__class__.__name__,
-            msg=self.msg,
-            token=self.token
+            msg=self.msg
         )
 
     def __repr__(self):
@@ -183,9 +183,7 @@ class Parser:
             self.step()
 
             return ParseResult(FunctionDefinition(name, args, body))
-        else: # it's a constant
-            if not self.tok.check(TokenType.IDENTIFIER):
-                return self.errorresult('constant name expected')
+        elif self.tok.check(TokenType.IDENTIFIER): # it's a constant
             name = self.tok.value
             self.step()
             value = self.expr()
@@ -195,6 +193,8 @@ class Parser:
                 return self.errorresult('`)` expected after constant definition')
             self.step()
             return ParseResult(ConstantDefinition(name, value.expr))
+        else:
+            return self.errorresult('invalid token in definition')
 
 
 

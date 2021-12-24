@@ -12,7 +12,7 @@ class CmdMain(cmd.Cmd):
     def default(self, line):
         if len(self.tokens) != 0:
             self.tokens.pop() # pop EOF
-        self.tokens += lexer.make_tokens(line)
+        self.tokens += lexer.make_tokens('<cmd>', line)
         try:
             for pres in parser.parse(self.tokens):
                 if pres.error:
@@ -35,7 +35,7 @@ class CmdMain(cmd.Cmd):
 
 def main_file(file_name):
     with open(file_name, 'r') as f:
-        for pres in parser.parse(lexer.make_tokens(f.read())):
+        for pres in parser.parse(lexer.make_tokens(file_name, f.read())):
             if pres.error:
                 print(pres.error)
                 break
