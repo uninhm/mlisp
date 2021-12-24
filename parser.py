@@ -109,13 +109,13 @@ class ConstantDefinition(Expression):
         )
     
 class LangError:
-    def __init__(self, msg, token):
+    def __init__(self, msg, pos):
         self.msg = msg
-        self.token = token
+        self.pos = pos
 
     def __str__(self):
         return '{pos}: {errname}: {msg}'.format(
-            pos=self.token.pos,
+            pos=self.pos,
             errname=self.__class__.__name__,
             msg=self.msg
         )
@@ -126,22 +126,25 @@ class LangError:
 class ParsingError(LangError):
     pass
 
-class ParseResult:
-    def __init__(self, expr, error=None):
-        self.expr: Expression = expr
-        self.error: ParsingError | None = error
+class Result:
+    def __init__(self, result, error=None):
+        self.result = result
+        self.error = error
 
     def __str__(self):
         if self.error:
             return self.error.__str__()
-        return self.expr.__str__()
+        return self.result.__str__()
 
     def __repr__(self):
         return self.__str__()
     
     def __iter__(self):
-        yield self.expr
+        yield self.result
         yield self.error
+
+class ParseResult(Result):
+    pass
 
 class Parser:
     def step(self):
@@ -149,7 +152,7 @@ class Parser:
         self.tok = self.tokens[self.idx] 
 
     def errorresult(self, msg):
-        return ParseResult(None, ParsingError(msg, self.tok))
+        return ParseResult(None, ParsingError(msg, self.tok.pos))
     
     def def_expr(self) -> ParseResult:
         self.step()
@@ -175,7 +178,7 @@ class Parser:
                 e = self.expr()
                 if e.error:
                     return e
-                body.append(e.expr)
+                body.append(e.result)
                 
             if not self.tok.check(TokenType.RIGHT_PAREN):
                 return self.errorresult('`)` expected after function definition')
@@ -192,7 +195,7 @@ class Parser:
             if not self.tok.check(TokenType.RIGHT_PAREN):
                 return self.errorresult('`)` expected after constant definition')
             self.step()
-            return ParseResult(ConstantDefinition(name, value.expr))
+            return ParseResult(ConstantDefinition(name, value.result))
         else:
             return self.errorresult('invalid token in definition')
 
@@ -215,7 +218,7 @@ class Parser:
         
         self.step()
 
-        return ParseResult(If(condition.expr, body.expr, else_body.expr))
+        return ParseResult(If(condition.result, body.result, else_body.result))
 
     def cond_expr(self):
         return self.errorresult('conditional expression not implemented')
@@ -237,9 +240,9 @@ class Parser:
                 e = self.expr()
                 if e.error:
                     return e
-                args.append(e.expr)
+                args.append(e.result)
             self.step()
-            return ParseResult(FunctionCall(op.expr, args))
+            return ParseResult(FunctionCall(op.result, args))
         elif self.tok.check(TokenType.IDENTIFIER):
             tok = self.tok
             self.step()
