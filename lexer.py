@@ -92,28 +92,32 @@ class Lexer:
                 tokens.append(Token(TokenType.RIGHT_PAREN, self.current_pos()))
                 self.step()
             elif self.char.isdigit():
+                pos = self.current_pos()
                 num = ''
                 while self.char.isdigit() or self.char == '.':
                     num += self.char
                     self.step()
                 if '.' in num:
-                    tokens.append(Token(TokenType.NUMBER, self.current_pos(), float(num)))
+                    tokens.append(Token(TokenType.NUMBER, pos, float(num)))
                 else:
-                    tokens.append(Token(TokenType.NUMBER, self.current_pos(), int(num)))
+                    tokens.append(Token(TokenType.NUMBER, pos, int(num)))
             elif self.char == '"':
+                pos = self.current_pos()
                 string = ''
                 self.step()
                 while self.char != '"':
                     string += self.char
                     self.step()
                 self.step()
-                tokens.append(Token(TokenType.STRING, self.current_pos(), string))
+                tokens.append(Token(TokenType.STRING, pos, string))
             elif self.char == '?':
+                pos = self.current_pos()
                 self.step()
                 char = self.char
                 self.step()
-                tokens.append(Token(TokenType.CHAR, self.current_pos(), ord(char)))
+                tokens.append(Token(TokenType.CHAR, pos, ord(char)))
             else:
+                pos = self.current_pos()
                 ident = ''
                 while self.char not in ' \t\n()' and self.char != 'EOF':
                     ident += self.char
@@ -121,7 +125,7 @@ class Lexer:
                 kind = TokenType.IDENTIFIER
                 if ident in KEYWORDS:
                     kind = TokenType.KEYWORD
-                tokens.append(Token(kind, self.current_pos(), ident))
+                tokens.append(Token(kind, pos, ident))
 
         tokens.append(Token(TokenType.EOF, self.current_pos()))
         return tokens
