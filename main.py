@@ -2,8 +2,8 @@ from sys import argv, setrecursionlimit
 import cmd
 
 from lexer import Lexer, UnexpectedEOF
-from parser import Parser, Scope
-from interpreter import Interpreter
+from parser import Parser
+from interpreter import Interpreter, Scope
 
 class CmdMain(cmd.Cmd):
     prompt = '>>> '
