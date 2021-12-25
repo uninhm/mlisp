@@ -18,10 +18,10 @@ class Scope:
             return self.parent.get(name)
         else:
             return None
-    
+
     def __contains__(self, name):
         return name in self.content or (self.parent and name in self.parent)
-    
+
     def __getitem__(self, name):
         return self.get(name)
 
@@ -30,7 +30,7 @@ class Function:
     def __init__(self, args, body):
         self.args = args
         self.body = body
-    
+
     def __str__(self) -> str:
         return "Function"
 

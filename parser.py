@@ -15,20 +15,20 @@ class FunctionCall(Expression):
         super().__init__(pos)
         self.op = op
         self.args = args
-    
+
     def __str__(self):
         return 'Expression({op}, {args})'.format(
             op=self.op,
             args=self.args
         )
-    
+
 class FunctionDefinition(Expression):
     def __init__(self, pos, name, args, body):
         super().__init__(pos)
         self.name = name
         self.args = args
         self.body = body
-    
+
     def __str__(self):
         return 'Function({name}, {args}, {body})'.format(
             name=self.name,
@@ -42,7 +42,7 @@ class If(Expression):
         self.condition = condition
         self.body = body
         self.else_body = else_body
-    
+
     def __str__(self):
         return 'If({condition}, {body}, {else_body})'.format(
             condition=self.condition,
@@ -54,7 +54,7 @@ class IdentifierRef(Expression):
     def __init__(self, pos, name):
         super().__init__(pos)
         self.name = name
-    
+
     def __str__(self):
         return 'IdentifierRef({name})'.format(
             name=self.name
@@ -76,7 +76,7 @@ class Literal(Expression):
     def __init__(self, pos, value):
         super().__init__(pos)
         self.value = value
-    
+
     def __str__(self):
         return 'Literal({value})'.format(
             value=self.value
@@ -93,7 +93,7 @@ class ConstantDefinition(Expression):
             name=self.name,
             value=self.value
         )
-    
+
 class LangError:
     def __init__(self, msg, pos):
         self.msg = msg
@@ -124,7 +124,7 @@ class Result:
 
     def __repr__(self):
         return self.__str__()
-    
+
     def __iter__(self):
         yield self.result
         yield self.error
@@ -135,11 +135,11 @@ class ParseResult(Result):
 class Parser:
     def step(self):
         self.idx += 1
-        self.tok = self.tokens[self.idx] 
+        self.tok = self.tokens[self.idx]
 
     def errorresult(self, msg):
         return ParseResult(None, ParsingError(msg, self.tok.pos))
-    
+
     def def_expr(self) -> ParseResult:
         pos = self.tok.pos
         self.step()
@@ -157,7 +157,7 @@ class Parser:
 
             if not self.tok.check(TokenType.RIGHT_PAREN):
                 return self.errorresult('`)` expected in function definition')
-            
+
             self.step()
 
             body = []
@@ -166,7 +166,7 @@ class Parser:
                 if e.error:
                     return e
                 body.append(e.result)
-                
+
             if not self.tok.check(TokenType.RIGHT_PAREN):
                 return self.errorresult('`)` expected after function definition')
 
@@ -203,14 +203,14 @@ class Parser:
 
         if not self.tok.check(TokenType.RIGHT_PAREN):
             return self.errorresult('`)` expected after if expression')
-        
+
         self.step()
 
         return ParseResult(If(pos, condition.result, body.result, else_body.result))
 
     def cond_expr(self):
         return self.errorresult('conditional expression not implemented')
-    
+
     def expr(self) -> ParseResult:
         if self.tok.check(TokenType.LEFT_PAREN):
             self.step()
@@ -248,7 +248,7 @@ class Parser:
             return ParseResult(Literal(tok.pos, tok.value))
         else:
             return self.errorresult('Unknown expression')
-    
+
     def parse(self, tokens):
         self.tokens = tokens
         self.idx = -1

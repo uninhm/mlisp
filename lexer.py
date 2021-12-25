@@ -51,7 +51,7 @@ class Token:
 
     def __repr__(self):
         return self.__str__()
-    
+
     def check(self, tokentype):
         if self.type == TokenType.EOF != tokentype:
             raise UnexpectedEOF()
@@ -72,7 +72,7 @@ class Lexer:
                 self.col += 1
         else:
             self.char = 'EOF'
-    
+
     def make_tokens(self, filename, text):
         self.filename = filename
         self.text = text
