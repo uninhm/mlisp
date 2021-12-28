@@ -292,7 +292,8 @@ class Parser:
         elif self.tok.check(TokenType.IDENTIFIER):
             tok = self.tok
             self.step()
-            return ParseResult(IdentifierRef(tok.pos, tok.typ, tok.value))
+            #TODO: Diferentiate between indentifier references and declarations
+            return ParseResult(IdentifierRef(tok.pos, type_class(tok.typ), tok.value))
         elif self.tok.check(TokenType.KEYWORD):
             tok = self.tok
             self.step()

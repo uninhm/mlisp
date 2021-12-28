@@ -5,7 +5,8 @@ KEYWORDS = {
     '%', 'def',
     'if', 'cond', 'or', 'and', 'not',
     '+', '-', '*', '/', '=', '<', '>', 'syscall',
-    'progn', 'include', 'reserve', 'get', 'set'
+    'progn', 'include', 'reserve', 'set', 'setp', 'getp', 'addr',
+    'var'
 }
 
 class TokenType(Enum):

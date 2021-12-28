@@ -54,7 +54,7 @@ class Compiler:
             for i in range(len(expr.args)-1, -1, -1):
                 self.print(f"pop {registers[i]}")
             self.print("syscall")
-        elif expr.op.name == 'get':
+        elif expr.op.name == 'getp':
             typ = self.get_type(expr.args[0], scope)
             if not isinstance(typ, Pointer):
                 raise Exception(f'{expr.pos}: Expected pointer but got {typ}')
@@ -65,7 +65,7 @@ class Compiler:
                 self.print(f'mov al, {asm_size_repr(sizeof(typ.typ))} [rdi]')
             else:
                 self.print(f'mov rax, {asm_size_repr(sizeof(typ.typ))} [rax]')
-        elif expr.op.name == 'set':
+        elif expr.op.name == 'setp':
             typ = self.get_type(expr.args[0], scope)
             if not isinstance(typ, Pointer):
                 raise Exception(f'{expr.pos}: Expected pointer')
@@ -78,6 +78,44 @@ class Compiler:
                 self.print(f'mov {asm_size_repr(sizeof(typ.typ))} [rax], dil')
             else:
                 self.print(f'mov {asm_size_repr(sizeof(typ.typ))} [rax], rdi')
+        elif expr.op.name == 'addr':
+            if not isinstance(expr.args[0], IdentifierRef):
+                raise Exception(f'{expr.pos}: Expected identifier')
+            addr = scope[expr.args[0].name].value.split('[')[1][:-1] #TODO: So this better
+            self.print(f'mov rax, {addr}')
+        elif expr.op.name == 'var': # TODO: This should be handled by the parser as a diferent expression
+            typ = expr.args[0].typ
+            if typ is None:
+                raise Exception(f'{expr.pos}: Undefined type')
+            if self.debug:
+                self.print(f'; {expr.args[0].name}: [mem+{self.mem_size}]')
+            sz = asm_size_repr(sizeof(typ))
+            scope[expr.args[0].name] = Value(typ, f'{sz} [mem+{self.mem_size}]')
+            if len(expr.args) == 2:
+                typ2 = self.get_type(expr.args[1], scope)
+                if typ2 is None:
+                    raise Exception(f'{expr.pos}: Undefined type')
+                if typ != typ2:
+                    raise Exception(f'{expr.pos}: Types don\'t match')
+                if self.debug:
+                    self.print(f'; {expr.args[0].name}: [mem+{self.mem_size}]')
+                self.compile(expr.args[1], scope)
+                if sizeof(typ) == 1:
+                    self.print(f'mov {sz} [mem+{self.mem_size}], al')
+                else:
+                    self.print(f'mov {sz} [mem+{self.mem_size}], rax')
+            self.mem_size += sizeof(typ)
+        elif expr.op.name == 'set':
+            typ1 = self.get_type(expr.args[0], scope)
+            typ2 = self.get_type(expr.args[1], scope)
+            if typ1 != typ2:
+                raise Exception(f'{expr.pos}: Expected {typ1} but got {typ2}')
+            self.compile(expr.args[1], scope)
+            # TODO: Handle every possible size
+            if sizeof(typ1) == 1:
+                self.print(f'mov {scope[expr.args[0].name].value}, al')
+            else:
+                self.print(f'mov {scope[expr.args[0].name].value}, rax')
         elif expr.op.name == 'reserve':
             if not isinstance(expr.args[0], IdentifierRef):
                 raise Exception('Expected expected identifier for memory reservation')
@@ -212,6 +250,11 @@ class Compiler:
                 return self.get_type(expr.args[0], scope)
             elif expr.op.name in ('print', '<', '=', 'not'):
                 return Integer()
+            elif expr.op.name == 'addr':
+                return Pointer(self.get_type(expr.args[0], scope))
+            elif expr.op.name == 'getp':
+                assert isinstance(expr.args[0].typ, Pointer)
+                return self.get_type(expr.args[0], scope).typ
             else:
                 return Integer()
                 # TODO: Handle every keyword
@@ -264,7 +307,11 @@ class Compiler:
                 raise Exception('IdentifierRef without scope')
             if isinstance(scope[expr.name].value, Function):
                 raise Exception('Closures are not implemented')
-            self.print(f'mov rax, {scope[expr.name].value}')
+            if sizeof(self.get_type(expr, scope)) == 1: #TODO: Handle every possible size
+                self.print('xor rax, rax')
+                self.print(f'mov al, {scope[expr.name].value}')
+            else:
+                self.print(f'mov rax, {scope[expr.name].value}')
         elif isinstance(expr, If):
             self.compile_if(expr, scope)
         elif isinstance(expr, FunctionDefinition):
@@ -304,7 +351,7 @@ class Compiler:
         self.end_idx = 0
         self.func_idx = 0
         self.used_args_mem = 0
-        self.debug = False
+        self.debug = True
         self.mem_size = 0
         self.file = open('out.asm', 'w')
         self.str_literals = []
