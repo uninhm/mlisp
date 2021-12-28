@@ -11,6 +11,7 @@
   (syscall SYS_read STDIN buf l))
 
 (def (!=:int a:int b:int) (not (= a b)))
+(def (>=:int a:int b:int) (not (< a b)))
 
 (def (parseint-iter:int str:ptr-char i:int n:int)
   (if (= (getp (+ str i)) 0)
@@ -43,3 +44,5 @@
 
 (def (strip buf:ptr-char)
   (strip-iter buf 0))
+
+(def (even?:int n:int) (= (% n 2) 0))
