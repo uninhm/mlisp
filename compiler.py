@@ -9,6 +9,7 @@ registers = ['rax', 'rdi', 'rsi', 'rdx', 'r10', 'r8', 'r9']
 # TODO: Add generics
 # TODO: Add debug info into the generated assembly
 # TODO: Follow function calling convention
+# TODO: Optimize tail recursion
 
 class Value:
     def __init__(self, typ, addr):
