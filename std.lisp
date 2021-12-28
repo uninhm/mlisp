@@ -3,8 +3,6 @@
 (def STDIN 0)
 (def STDOUT 1)
 (def STDERR 2)
-(def INT_SZ 8)
-(def PTR_SZ 8)
 
 (def (puts s:ptr-char l:int)
   (syscall SYS_write STDOUT s l))
