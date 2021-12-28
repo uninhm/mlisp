@@ -1,14 +1,24 @@
 (def SYS_read 0)
 (def SYS_write 1)
+(def SYS_openat 257)
 (def STDIN 0)
 (def STDOUT 1)
 (def STDERR 2)
 
-(def (puts s:ptr-char l:int)
-  (syscall SYS_write STDOUT s l))
+(def (openat:int dfd:int path:ptr-char flags:int mode:int)
+  (syscall SYS_openat dfd path flags mode))
 
-(def (input buf:ptr-char l:int)
-  (syscall SYS_read STDIN buf l))
+(def (read fd:int buf:ptr-char count:int)
+  (syscall SYS_read fd buf count))
+
+(def (write fd:int buf:ptr-char count:int)
+  (syscall SYS_write fd buf count))
+
+(def (puts s:ptr-char count:int)
+  (write STDOUT s count))
+
+(def (input buf:ptr-char count:int)
+  (read STDIN buf count))
 
 (def (!=:int a:int b:int) (not (= a b)))
 (def (>=:int a:int b:int) (not (< a b)))
