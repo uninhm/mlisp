@@ -10,6 +10,7 @@ registers = ['rax', 'rdi', 'rsi', 'rdx', 'r10', 'r8', 'r9']
 # TODO: Add debug info into the generated assembly
 # TODO: Follow function calling convention
 # TODO: Optimize tail recursion
+# TODO: Add casting
 
 class Value:
     def __init__(self, typ, addr):
@@ -163,11 +164,15 @@ class Compiler:
             self.print('cmove rcx, rdx')
             self.print('mov rax, rcx')
         elif expr.op.name == '-':
-            self.compile(expr.args[1], scope)
-            self.print(f'push rax')
-            self.compile(expr.args[0], scope)
-            self.print('pop rbx')
-            self.print('sub rax, rbx')
+            if len(expr.args) == 1:
+                self.compile(expr.args[0], scope)
+                self.print('neg rax')
+            else:
+                self.compile(expr.args[1], scope)
+                self.print(f'push rax')
+                self.compile(expr.args[0], scope)
+                self.print('pop rbx')
+                self.print('sub rax, rbx')
         elif expr.op.name == '+':
             self.compile(expr.args[1], scope)
             self.print(f'push rax')
@@ -185,7 +190,7 @@ class Compiler:
             self.print(f'push rax')
             self.compile(expr.args[0], scope)
             self.print('pop rbx')
-            self.print('xor rdx, rdx')
+            self.print('cqo')
             self.print('idiv rbx')
         elif expr.op.name == '%':
             self.compile(expr.args[1], scope)
@@ -356,7 +361,7 @@ class Compiler:
 
         for i, e in enumerate(self.str_literals):
             cms = ','.join(str(ord(c)) for c in e)
-            self.print(f'str_{i}: db {cms}')
+            self.print(f'str_{i}: db {cms},0')
 
         if nasm:
             self.print('section .bss')
