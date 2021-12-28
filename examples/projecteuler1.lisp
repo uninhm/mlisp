@@ -9,9 +9,4 @@
         (loop (+ i 1) (+ total i))
         (loop (+ i 1) total)))))
 
-(reserve repr-buf 20)
-(var len:int
-  (repr 20 repr-buf
-    (loop 0 0)))
-(puts (+ repr-buf (- 20 len)) len)
-(puts "\n" 1)
+(print (loop 0 0))

@@ -46,3 +46,11 @@
   (strip-iter buf 0))
 
 (def (even?:int n:int) (= (% n 2) 0))
+
+(def (print n:int)
+  (def buf-size 20)
+  (reserve buf buf-size) ; TODO use stack instead
+  (var repr-len:int
+    (repr buf-size buf n))
+  (puts (+ buf (- buf-size repr-len)) repr-len)
+  (puts "\n" 1))
