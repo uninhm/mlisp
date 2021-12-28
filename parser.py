@@ -1,4 +1,30 @@
 from lexer import TokenType
+from langtypes import *
+
+def type_class(s):
+    if s == None:
+        return None
+    if s == 'int':
+        return Integer()
+    elif s == 'char':
+        return Character()
+    elif s == 'ptr':
+        return Pointer()
+    elif s.startswith('ptr-'):
+        return Pointer(type_class(s[4:]))
+    else:
+        raise Exception("Unknown type class")
+
+class Param:
+    def __init__(self, name, typ):
+        self.name = name
+        self.typ = typ
+
+    def __str__(self):
+        return f'{self.name}: {self.typ}'
+
+    def __repr__(self):
+        return self.__str__()
 
 class Expression:
     def __init__(self, pos):
@@ -17,20 +43,21 @@ class FunctionCall(Expression):
         self.args = args
 
     def __str__(self):
-        return 'Expression({op}, {args})'.format(
+        return 'FunctionCall({op}, {args})'.format(
             op=self.op,
             args=self.args
         )
 
 class FunctionDefinition(Expression):
-    def __init__(self, pos, name, args, body):
+    def __init__(self, pos, name, ret_type, args, body):
         super().__init__(pos)
         self.name = name
+        self.ret_type = ret_type
         self.args = args
         self.body = body
 
     def __str__(self):
-        return 'Function({name}, {args}, {body})'.format(
+        return 'FunctionDefinition({name}, {args}, {body})'.format(
             name=self.name,
             args=self.args,
             body=self.body
@@ -39,20 +66,21 @@ class FunctionDefinition(Expression):
 class If(Expression):
     def __init__(self, pos, condition, body, else_body=None):
         super().__init__(pos)
-        self.condition = condition
+        self.cond = condition
         self.body = body
         self.else_body = else_body
 
     def __str__(self):
         return 'If({condition}, {body}, {else_body})'.format(
-            condition=self.condition,
+            condition=self.cond,
             body=self.body,
             else_body=self.else_body
         )
 
 class IdentifierRef(Expression):
-    def __init__(self, pos, name):
+    def __init__(self, pos, typ, name):
         super().__init__(pos)
+        self.typ = typ
         self.name = name
 
     def __str__(self):
@@ -71,15 +99,14 @@ class Keyword(Expression):
         )
 
 class Literal(Expression):
-    #TODO: Add type
-
-    def __init__(self, pos, value):
+    def __init__(self, pos, typ, value):
         super().__init__(pos)
+        self.typ = typ
         self.value = value
 
     def __str__(self):
         return 'Literal({value})'.format(
-            value=self.value
+            value=repr(self.value)
         )
 
 class ConstantDefinition(Expression):
@@ -92,6 +119,16 @@ class ConstantDefinition(Expression):
         return 'ConstantDefinition({name}, {value})'.format(
             name=self.name,
             value=self.value
+        )
+
+class Include(Expression):
+    def __init__(self, pos, path):
+        super().__init__(pos)
+        self.path = path
+
+    def __str__(self):
+        return 'Include({path})'.format(
+            path=self.path
         )
 
 class LangError:
@@ -149,10 +186,11 @@ class Parser:
                 return self.errorresult('function name expected')
 
             name = self.tok.value
+            ret_type = type_class(self.tok.typ)
             self.step()
             args = []
             while self.tok.check(TokenType.IDENTIFIER):
-                args.append(self.tok.value)
+                args.append(Param(self.tok.value, type_class(self.tok.typ)))
                 self.step()
 
             if not self.tok.check(TokenType.RIGHT_PAREN):
@@ -172,13 +210,15 @@ class Parser:
 
             self.step()
 
-            return ParseResult(FunctionDefinition(pos, name, args, body))
+            return ParseResult(FunctionDefinition(pos, name, ret_type, args, body))
         elif self.tok.check(TokenType.IDENTIFIER): # it's a constant
             name = self.tok.value
             self.step()
             value = self.expr()
             if value.error:
                 return value
+            if not isinstance(value.result, Literal):
+                return self.errorresult('Only literals can be constants for now')
             if not self.tok.check(TokenType.RIGHT_PAREN):
                 return self.errorresult('`)` expected after constant definition')
             self.step()
@@ -197,9 +237,12 @@ class Parser:
         body = self.expr()
         if body.error:
             return body
-        else_body = self.expr()
-        if else_body.error:
-            return else_body
+
+        else_body = ParseResult(None)
+        if not self.tok.check(TokenType.RIGHT_PAREN):
+            else_body = self.expr()
+            if else_body.error:
+                return else_body
 
         if not self.tok.check(TokenType.RIGHT_PAREN):
             return self.errorresult('`)` expected after if expression')
@@ -211,6 +254,18 @@ class Parser:
     def cond_expr(self):
         return self.errorresult('conditional expression not implemented')
 
+    def include_expr(self):
+        pos = self.tok.pos
+        self.step()
+        if not self.tok.check(TokenType.STRING):
+            return self.errorresult('filename expected in include expression')
+        filename = self.tok.value
+        self.step()
+        if not self.tok.check(TokenType.RIGHT_PAREN):
+            return self.errorresult('`)` expected after include expression')
+        self.step()
+        return ParseResult(Include(pos, filename))
+
     def expr(self) -> ParseResult:
         if self.tok.check(TokenType.LEFT_PAREN):
             self.step()
@@ -220,6 +275,8 @@ class Parser:
                 return self.if_expr()
             elif self.tok.value == 'cond':
                 return self.cond_expr()
+            elif self.tok.value == 'include':
+                return self.include_expr()
             pos = self.tok.pos
             op = self.expr()
             if op.error:
@@ -235,17 +292,23 @@ class Parser:
         elif self.tok.check(TokenType.IDENTIFIER):
             tok = self.tok
             self.step()
-            return ParseResult(IdentifierRef(tok.pos, tok.value))
+            return ParseResult(IdentifierRef(tok.pos, tok.typ, tok.value))
         elif self.tok.check(TokenType.KEYWORD):
             tok = self.tok
             self.step()
             return ParseResult(Keyword(tok.pos, tok.value))
-        elif self.tok.check(TokenType.NUMBER) or\
-             self.tok.check(TokenType.STRING) or\
-             self.tok.check(TokenType.CHAR):
+        elif self.tok.check(TokenType.NUMBER):
             tok = self.tok
             self.step()
-            return ParseResult(Literal(tok.pos, tok.value))
+            return ParseResult(Literal(tok.pos, Integer(), tok.value))
+        elif self.tok.check(TokenType.STRING):
+            tok = self.tok
+            self.step()
+            return ParseResult(Literal(tok.pos, Pointer(Character()), tok.value))
+        elif self.tok.check(TokenType.CHAR):
+            tok = self.tok
+            self.step()
+            return ParseResult(Literal(tok.pos, Character(), tok.value))
         else:
             return self.errorresult('Unknown expression')
 

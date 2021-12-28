@@ -2,17 +2,16 @@ from enum import Enum
 from dataclasses import dataclass
 
 KEYWORDS = {
-    'idx', 'len', 'input', 'print', 'div', 'mod', 'def',
+    '%', 'def',
     'if', 'cond', 'or', 'and', 'not',
-    '+', '-', '*', '/', '=', '<', '>'
+    '+', '-', '*', '/', '=', '<', '>', 'syscall',
+    'progn', 'include', 'reserve', 'get', 'set'
 }
 
 class TokenType(Enum):
     # Single-character tokens.
     LEFT_PAREN = '('
     RIGHT_PAREN = ')'
-    LEFT_BRACE = '{'
-    RIGHT_BRACE = '}'
 
     # Literals.
     IDENTIFIER = 'IDENTIFIER'
@@ -37,15 +36,27 @@ class Pos:
     def __str__(self):
         return f'{self.filename}:{self.line}:{self.column}'
 
+class Param:
+    def __init__(self, name, typ):
+        self.name = name
+        self.typ = typ
+
+    def __str__(self):
+        return f'{self.name}:{self.typ}'
+
+    def __repr__(self):
+        return self.__str__()
+
 class Token:
-    def __init__(self, type: TokenType, pos: Pos, value=None):
-        self.type: TokenType = type
+    def __init__(self, kind: TokenType, pos: Pos, value=None, typ=None):
+        self.kind: TokenType = kind
         self.pos: Pos = pos
         self.value = value
+        self.typ = typ
 
     def __str__(self):
         return 'Token({type}, {value})'.format(
-            type=self.type,
+            type=self.kind,
             value=repr(self.value)
         )
 
@@ -53,9 +64,9 @@ class Token:
         return self.__str__()
 
     def check(self, tokentype):
-        if self.type == TokenType.EOF != tokentype:
+        if self.kind == TokenType.EOF != tokentype:
             raise UnexpectedEOF()
-        return self.type == tokentype
+        return self.kind == tokentype
 
 class Lexer:
     def current_pos(self):
@@ -106,26 +117,50 @@ class Lexer:
                 string = ''
                 self.step()
                 while self.char != '"':
-                    string += self.char
+                    if self.char == '\\':
+                        self.step()
+                        if self.char == 'n':
+                            string += '\n'
+                        elif self.char == 't':
+                            string += '\t'
+                        elif self.char == '\\':
+                            string += '\\'
+                        elif self.char == '"':
+                            string += '"'
+                        else:
+                            raise RuntimeError(f'Unknown escape sequence: \\{self.char}')
+                    else:
+                        string += self.char
                     self.step()
                 self.step()
                 tokens.append(Token(TokenType.STRING, pos, string))
-            elif self.char == '?':
+            elif self.char == '?': #TODO: Find a better syntax for char literals
                 pos = self.current_pos()
                 self.step()
                 char = self.char
                 self.step()
                 tokens.append(Token(TokenType.CHAR, pos, ord(char)))
+            elif self.char == ';':
+                while self.char != '\n':
+                    self.step()
             else:
                 pos = self.current_pos()
                 ident = ''
-                while self.char not in ' \t\n()' and self.char != 'EOF':
+                while self.char not in ' \t\n():' and self.char != 'EOF':
                     ident += self.char
                     self.step()
-                kind = TokenType.IDENTIFIER
-                if ident in KEYWORDS:
-                    kind = TokenType.KEYWORD
-                tokens.append(Token(kind, pos, ident))
+                if self.char == ':':
+                    self.step()
+                    typ = ''
+                    while self.char not in ' \t\n()' and self.char != 'EOF':
+                        typ += self.char
+                        self.step()
+                    tokens.append(Token(TokenType.IDENTIFIER, pos, ident, typ))
+                else:
+                    kind = TokenType.IDENTIFIER
+                    if ident in KEYWORDS:
+                        kind = TokenType.KEYWORD
+                    tokens.append(Token(kind, pos, ident))
 
         tokens.append(Token(TokenType.EOF, self.current_pos()))
         return tokens

@@ -1,0 +1,326 @@
+from lexer import Lexer
+from parser import ConstantDefinition, Parser, FunctionDefinition, IdentifierRef, Literal, FunctionCall, Keyword, If, Include
+from langtypes import *
+
+registers = ['rax', 'rdi', 'rsi', 'rdx', 'r10', 'r8', 'r9']
+
+# TODO: Fix return type for built-in functions
+# TODO: Check types for built-in functions
+# TODO: Add generics
+# NEXT TODO: Change parameters to be relative addresses
+#            so I can free memory after call, probebly
+#            by using the stack
+# TODO: Add debug info into the generated assembly
+
+class Value:
+    def __init__(self, typ, addr):
+        self.typ = typ
+        self.value = addr
+
+class Scope:
+    def __init__(self, parent=None):
+        self.parent = parent
+        self.data = {}
+
+    def __getitem__(self, key):
+        if key in self.data:
+            return self.data[key]
+        elif self.parent:
+            return self.parent[key]
+        else:
+            raise Exception('Undefined variable: ' + key)
+
+    def __setitem__(self, key, value):
+        self.data[key] = value
+
+
+class Function:
+    def __init__(self, name, ret_type, args, idx, scope):
+        self.name = name
+        self.ret_type = ret_type
+        self.args = args
+        self.idx = idx
+        self.scope = scope
+
+class Compiler:
+    def print(self, msg):
+        print(msg, file=self.file)
+
+    def handle_keyword(self, expr, scope):
+        if expr.op.name == 'syscall':
+            for arg in expr.args:
+                self.compile(arg, scope)
+                self.print(f'push rax')
+            for i in range(len(expr.args)-1, -1, -1):
+                self.print(f"pop {registers[i]}")
+            self.print("syscall")
+        elif expr.op.name == 'get':
+            typ = self.get_type(expr.args[0], scope)
+            if not isinstance(typ, Pointer):
+                raise Exception(f'{expr.pos}: Expected pointer but got {typ}')
+            self.compile(expr.args[0], scope)
+            if sizeof(typ.typ) == 1:
+                self.print(f'mov rdi, rax')
+                self.print(f'xor rax, rax')
+                self.print(f'mov al, {asm_size_repr(sizeof(typ.typ))} [rdi]')
+            else:
+                self.print(f'mov rax, {asm_size_repr(sizeof(typ.typ))} [rax]')
+        elif expr.op.name == 'set':
+            typ = self.get_type(expr.args[0], scope)
+            if not isinstance(typ, Pointer):
+                raise Exception(f'{expr.pos}: Expected pointer')
+            self.compile(expr.args[1], scope)
+            self.print('push rax')
+            self.compile(expr.args[0], scope)
+            self.print('pop rdi')
+            # TODO: Handle every possible size
+            if sizeof(typ.typ) == 1:
+                self.print(f'mov {asm_size_repr(sizeof(typ.typ))} [rax], dil')
+            else:
+                self.print(f'mov {asm_size_repr(sizeof(typ.typ))} [rax], rdi')
+        elif expr.op.name == 'reserve':
+            if not isinstance(expr.args[0], IdentifierRef):
+                raise Exception('Expected expected identifier for memory reservation')
+            if not isinstance(expr.args[1], Literal) and not isinstance(expr.args[1], IdentifierRef):
+                raise Exception('Expected expected constant amount for memory reservation')
+            scope[expr.args[0].name] = Value(Pointer(self.get_type(expr.args[1], scope)), f'qword [mem+{self.mem_size}]')
+            if self.debug:
+                self.print(f'; {expr.args[0].name}: [mem+{self.mem_size}]')
+            self.mem_size += sizeof(scope[expr.args[0].name].typ)
+            self.print(f'mov {scope[expr.args[0].name].value}, mem')
+            self.print(f'add {scope[expr.args[0].name].value}, {self.mem_size}')
+            if isinstance(expr.args[1], Literal):
+                self.mem_size += expr.args[1].value
+            else:
+                self.mem_size += int(scope[expr.args[1].name].value)
+        elif expr.op.name == 'progn':
+            for body_expr in expr.args:
+                self.compile(body_expr, scope)
+        elif expr.op.name == '<':
+            self.compile(expr.args[1], scope)
+            self.print(f'push rax')
+            self.compile(expr.args[0], scope)
+            self.print('pop rbx')
+            self.print('mov rcx, 0')
+            self.print('mov rdx, 1')
+            self.print('cmp rax, rbx')
+            self.print('cmovl rcx, rdx')
+            self.print('mov rax, rcx')
+        elif expr.op.name == '=':
+            self.compile(expr.args[1], scope)
+            self.print(f'push rax')
+            self.compile(expr.args[0], scope)
+            self.print('pop rbx')
+            self.print('mov rcx, 0')
+            self.print('mov rdx, 1')
+            self.print('cmp rax, rbx')
+            self.print('cmove rcx, rdx')
+            self.print('mov rax, rcx')
+        elif expr.op.name == '-':
+            self.compile(expr.args[1], scope)
+            self.print(f'push rax')
+            self.compile(expr.args[0], scope)
+            self.print('pop rbx')
+            self.print('sub rax, rbx')
+        elif expr.op.name == '+':
+            self.compile(expr.args[1], scope)
+            self.print(f'push rax')
+            self.compile(expr.args[0], scope)
+            self.print('pop rbx')
+            self.print('add rax, rbx')
+        elif expr.op.name == '*':
+            self.compile(expr.args[1], scope)
+            self.print(f'push rax')
+            self.compile(expr.args[0], scope)
+            self.print('pop rbx')
+            self.print('imul rax, rbx')
+        elif expr.op.name == '/':
+            self.compile(expr.args[1], scope)
+            self.print(f'push rax')
+            self.compile(expr.args[0], scope)
+            self.print('pop rbx')
+            self.print('xor rdx, rdx')
+            self.print('idiv rbx')
+        elif expr.op.name == '%':
+            self.compile(expr.args[1], scope)
+            self.print(f'push rax')
+            self.compile(expr.args[0], scope)
+            self.print('pop rbx')
+            self.print('xor rdx, rdx')
+            self.print('div rbx')
+            self.print('mov rax, rdx')
+        elif expr.op.name == 'not':
+            self.compile(expr.args[0], scope)
+            self.print('mov rcx, 0')
+            self.print('mov rdx, 1')
+            self.print('test rax, rax')
+            self.print('cmovz rcx, rdx')
+            self.print('mov rax, rcx')
+        else:
+            raise Exception(f'Unknown keyword: {expr.op.name}')
+
+    def compile_if(self, expr, scope):
+        else_idx = self.else_idx
+        self.else_idx += 1
+        end_idx = self.end_idx
+        self.end_idx += 1
+
+        self.compile(expr.cond, scope)
+        self.print(f'test rax, rax')
+        self.print(f'jz else_{else_idx}')
+        self.compile(expr.body, scope)
+        # TODO: Optimize jumps when there is no else
+        self.print(f'jmp end_{end_idx}')
+        self.print(f'else_{else_idx}:')
+        if expr.else_body is not None:
+            self.compile(expr.else_body, scope)
+        self.print(f'end_{end_idx}:')
+
+    def compile_function_definition(self, expr, scope, isinner=False):
+        func_idx = self.func_idx
+        self.func_idx += 1
+        end_idx = None
+        if isinner:
+            end_idx = self.end_idx
+            self.end_idx += 1
+        if self.debug:
+            self.print(f'; ----- {expr.name} -----')
+        self.print(f'func_{func_idx}:')
+        subscope = Scope(scope)
+        for arg in expr.args:
+            if arg.typ is None:
+                raise Exception('Expected type for argument')
+            if self.debug:
+                self.print(f'; {arg.name}: [args_mem+{self.used_args_mem}]')
+            sz = asm_size_repr(sizeof(arg.typ))
+            subscope[arg.name] = Value(arg.typ, f'{sz} [args_mem+{self.used_args_mem}]')
+            self.used_args_mem += sizeof(arg.typ)
+        scope[expr.name] = Value('func', Function(expr.name, expr.ret_type, expr.args, func_idx, subscope))
+        for body_expr in expr.body:
+            self.compile(body_expr, subscope)
+        self.print('ret')
+        if isinner:
+            self.print(f'end_{end_idx}:')
+
+    def get_type(self, expr, scope):
+        if isinstance(expr, Literal):
+            return expr.typ
+        elif isinstance(expr, IdentifierRef):
+            return scope[expr.name].typ
+        elif isinstance(expr, FunctionCall) and isinstance(expr.op, Keyword):
+            if expr.op.name in ('+', '-', '*', '/', '%'):
+                return self.get_type(expr.args[0], scope)
+            elif expr.op.name in ('print', '<', '=', 'not'):
+                return Integer()
+            else:
+                return Integer()
+                # TODO: Handle every keyword
+                # raise Exception(f'Unknown type for keyword: {expr.op.name}')
+        elif isinstance(expr, FunctionCall):
+            func = scope[expr.op.name].value
+            return func.ret_type
+        else:
+            raise Exception(f'Can\'t type check {type(expr)}')
+
+    def compile_function_call(self, expr, scope):
+        func = scope[expr.op.name]
+        if func.typ != 'func':
+            raise Exception(f'Expected function, got {func.typ}')
+        func = func.value
+        if len(expr.args) != len(func.args):
+            raise Exception('Wrong number of arguments')
+        for i in range(len(func.args)):
+            if self.get_type(expr.args[i], scope) != func.args[i].typ:
+                raise Exception(f'{expr.pos}: Argument {i} expected {func.args[i].typ}, got {self.get_type(expr.args[i], scope)}')
+            self.compile(expr.args[i], scope)
+            self.print('push rax')
+        for arg in reversed(func.args):
+            self.print('pop rax')
+            self.print(f'mov {func.scope[arg.name].value}, rax')
+        self.print(f'call func_{func.idx}')
+
+    def compile(self, expr, scope):
+        """
+        Compile an expression into assembly code,
+        write the assembly code to the output file
+        and return the register where the result is stored.
+        """
+        if self.debug:
+            self.print(f'; {expr.pos}: {expr}')
+        if isinstance(expr, Include):
+            raise Exception('Can\'t include inside an expression')
+        elif isinstance(expr, Literal):
+            if type(expr.value) == str: #TODO: Replace with lang type check
+                self.str_literals.append(expr.value)
+                self.print(f'mov rax, str_{len(self.str_literals)-1}')
+            elif type(expr.value) == int:
+                self.print(f'mov rax, {expr.value}')
+            else:
+                raise Exception(f'Unsupported literal type: {type(expr.value)}')
+        elif isinstance(expr, ConstantDefinition):
+            scope[expr.name] = Value(expr.value.typ, f'{expr.value.value}')
+        elif isinstance(expr, IdentifierRef):
+            if scope is None:
+                raise Exception('IdentifierRef without scope')
+            if isinstance(scope[expr.name].value, Function):
+                raise Exception('Closures are not implemented')
+            self.print(f'mov rax, {scope[expr.name].value}')
+        elif isinstance(expr, If):
+            self.compile_if(expr, scope)
+        elif isinstance(expr, FunctionDefinition):
+            self.compile_function_definition(expr, scope, isinner=True)
+        elif isinstance(expr, FunctionCall):
+            if isinstance(expr.op, Keyword):
+                self.handle_keyword(expr, scope)
+            else:
+                self.compile_function_call(expr, scope)
+        else:
+            raise Exception(f'Not implemented expression type: {type(expr)}')
+
+    def footer(self):
+        self.print('mov rax, 60')
+        self.print('mov rdi, 0')
+        self.print('syscall')
+        self.print('segment readable')
+        for i, e in enumerate(self.str_literals):
+            cms = ','.join(str(ord(c)) for c in e)
+            self.print(f'str_{i}: db {cms}')
+        self.print('segment readable writable')
+        self.print(f'args_mem: rb {self.used_args_mem}') # Memory for storing arguments at function calls
+        self.print(f'mem: rb {self.mem_size}') # General memory
+
+    def compile_include(self, expr, scope):
+        lexer = Lexer()
+        parser = Parser()
+        with open(expr.path, 'r') as f:
+            code = f.read()
+        for pres in parser.parse(lexer.make_tokens(expr.path, code)):
+            if pres.error:
+                raise Exception(f'{pres.error}')
+            self.compile(pres.result, scope)
+
+    def compile_all(self, exprs):
+        self.else_idx = 0
+        self.end_idx = 0
+        self.func_idx = 0
+        self.used_args_mem = 0
+        self.debug = False
+        self.mem_size = 0
+        self.file = open('out.asm', 'w')
+        self.str_literals = []
+        self.print('format ELF64 executable 3')
+        self.print('segment readable executable')
+        global_scope = Scope()
+        exprs2 = []
+        for expr in exprs:
+            if isinstance(expr, Include):
+                self.compile_include(expr, global_scope)
+            elif isinstance(expr, FunctionDefinition):
+                self.compile_function_definition(expr, global_scope)
+            else:
+                exprs2.append(expr)
+        self.print('entry start')
+        self.print('start:')
+        for expr in exprs2:
+            self.compile(expr, global_scope)
+        self.footer()
