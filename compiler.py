@@ -94,7 +94,7 @@ class Compiler:
         elif expr.op.name == 'var': # TODO: This should be handled by the parser as a diferent expression
             typ = expr.args[0].typ
             if typ is None:
-                raise Exception(f'{expr.pos}: Undefined type')
+                raise Exception(f'{expr.pos}: Missing type at variable declaration')
             if self.debug:
                 self.print(f'; {expr.args[0].name}: [mem+{self.mem_size}]')
             sz = asm_size_repr(sizeof(typ))
@@ -245,6 +245,8 @@ class Compiler:
             subscope[arg.name] = Value(arg.typ, f'{sz} [rbp+{offset+8-sizeof(arg.typ)}]')
             offset += 8 # sizeof(arg.typ)
         scope[expr.name] = Value('func', Function(expr.name, expr.ret_type, expr.args, func_idx, subscope))
+        if expr.ret_type is not None and self.get_type(expr.body[-1], subscope) != expr.ret_type:
+            raise Exception(f'{expr.pos}: Expected return type {expr.ret_type} but got {self.get_type(expr.body[-1], subscope)}')
         for body_expr in expr.body:
             self.compile(body_expr, subscope)
         self.print('pop rbp')
@@ -267,6 +269,8 @@ class Compiler:
             elif expr.op.name == 'getp':
                 assert isinstance(expr.args[0].typ, Pointer)
                 return self.get_type(expr.args[0], scope).typ
+            elif expr.op.name == 'progn':
+                return self.get_type(expr.args[-1], scope)
             else:
                 return Integer()
                 # TODO: Handle every keyword
@@ -274,6 +278,11 @@ class Compiler:
         elif isinstance(expr, FunctionCall):
             func = scope[expr.op.name].value
             return func.ret_type
+        elif isinstance(expr, If):
+            if self.get_type(expr.body, scope) != self.get_type(expr.else_body, scope):
+                return None
+            else:
+                return self.get_type(expr.body, scope)
         else:
             raise Exception(f'Can\'t type check {type(expr)}')
 
