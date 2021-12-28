@@ -80,7 +80,7 @@ class Compiler:
         elif expr.op.name == 'addr':
             if not isinstance(expr.args[0], IdentifierRef):
                 raise Exception(f'{expr.pos}: Expected identifier')
-            addr = scope[expr.args[0].name].value.split('[')[1][:-1] #TODO: So this better
+            addr = scope[expr.args[0].name].value.split('[')[1][:-1] #TODO: Do this in a better way
             if '-' in addr:
                 a, b = addr.split('-')
                 self.print(f'mov rax, {a}')
