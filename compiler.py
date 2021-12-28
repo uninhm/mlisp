@@ -7,10 +7,8 @@ registers = ['rax', 'rdi', 'rsi', 'rdx', 'r10', 'r8', 'r9']
 # TODO: Fix return type for built-in functions
 # TODO: Check types for built-in functions
 # TODO: Add generics
-# NEXT TODO: Change parameters to be relative addresses
-#            so I can free memory after call, probebly
-#            by using the stack
 # TODO: Add debug info into the generated assembly
+# TODO: Follow function calling convention
 
 class Value:
     def __init__(self, typ, addr):
@@ -224,18 +222,22 @@ class Compiler:
         if self.debug:
             self.print(f'; ----- {expr.name} -----')
         self.print(f'func_{func_idx}:')
+        self.print('push rbp')
+        self.print('mov rbp, rsp')
         subscope = Scope(scope)
+        offset = 16
         for arg in expr.args:
             if arg.typ is None:
                 raise Exception('Expected type for argument')
             if self.debug:
-                self.print(f'; {arg.name}: [args_mem+{self.used_args_mem}]')
+                self.print(f'; {arg.name}: [rbp+{offset+8-sizeof(arg.typ)}]')
             sz = asm_size_repr(sizeof(arg.typ))
-            subscope[arg.name] = Value(arg.typ, f'{sz} [args_mem+{self.used_args_mem}]')
-            self.used_args_mem += sizeof(arg.typ)
+            subscope[arg.name] = Value(arg.typ, f'{sz} [rbp+{offset+8-sizeof(arg.typ)}]')
+            offset += 8 # sizeof(arg.typ)
         scope[expr.name] = Value('func', Function(expr.name, expr.ret_type, expr.args, func_idx, subscope))
         for body_expr in expr.body:
             self.compile(body_expr, subscope)
+        self.print('pop rbp')
         self.print('ret')
         if isinner:
             self.print(f'end_{end_idx}:')
@@ -272,15 +274,13 @@ class Compiler:
         func = func.value
         if len(expr.args) != len(func.args):
             raise Exception('Wrong number of arguments')
-        for i in range(len(func.args)):
+        for i in reversed(range(len(func.args))):
             if self.get_type(expr.args[i], scope) != func.args[i].typ:
                 raise Exception(f'{expr.pos}: Argument {i} expected {func.args[i].typ}, got {self.get_type(expr.args[i], scope)}')
             self.compile(expr.args[i], scope)
             self.print('push rax')
-        for arg in reversed(func.args):
-            self.print('pop rax')
-            self.print(f'mov {func.scope[arg.name].value}, rax')
         self.print(f'call func_{func.idx}')
+        self.print(f'add rsp, {8*len(func.args)}')
 
     def compile(self, expr, scope):
         """
@@ -324,17 +324,26 @@ class Compiler:
         else:
             raise Exception(f'Not implemented expression type: {type(expr)}')
 
-    def footer(self):
+    def footer(self, nasm):
         self.print('mov rax, 60')
         self.print('mov rdi, 0')
         self.print('syscall')
-        self.print('segment readable')
+
+        if nasm:
+            self.print('section .data')
+        else:
+            self.print('segment readable')
+
         for i, e in enumerate(self.str_literals):
             cms = ','.join(str(ord(c)) for c in e)
             self.print(f'str_{i}: db {cms}')
-        self.print('segment readable writable')
-        self.print(f'args_mem: rb {self.used_args_mem}') # Memory for storing arguments at function calls
-        self.print(f'mem: rb {self.mem_size}') # General memory
+
+        if nasm:
+            self.print('section .bss')
+            self.print(f'mem: resb {self.mem_size}') # General memory
+        else:
+            self.print('segment readable writable')
+            self.print(f'mem: rb {self.mem_size}') # General memory
 
     def compile_include(self, expr, scope):
         lexer = Lexer()
@@ -350,13 +359,18 @@ class Compiler:
         self.else_idx = 0
         self.end_idx = 0
         self.func_idx = 0
-        self.used_args_mem = 0
         self.debug = True
         self.mem_size = 0
         self.file = open('out.asm', 'w')
         self.str_literals = []
-        self.print('format ELF64 executable 3')
-        self.print('segment readable executable')
+
+        nasm = False
+        if nasm:
+            self.print('segment .text')
+        else:
+            self.print('format ELF64 executable 3')
+            self.print('segment readable executable')
+
         global_scope = Scope()
         exprs2 = []
         for expr in exprs:
@@ -366,8 +380,14 @@ class Compiler:
                 self.compile_function_definition(expr, global_scope)
             else:
                 exprs2.append(expr)
-        self.print('entry start')
-        self.print('start:')
+
+        if nasm:
+            self.print('global _start')
+            self.print('_start:')
+        else:
+            self.print('entry start')
+            self.print('start:')
+
         for expr in exprs2:
             self.compile(expr, global_scope)
-        self.footer()
+        self.footer(nasm)
