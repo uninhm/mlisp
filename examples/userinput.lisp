@@ -2,7 +2,7 @@
 
 (def BUF_SIZE 32)
 
-(reserve buf BUF_SIZE)
+(var buf:ptr-char (reserve BUF_SIZE))
 
 (input buf BUF_SIZE)
 (strip buf)

@@ -7,10 +7,12 @@ registers = ['rax', 'rdi', 'rsi', 'rdx', 'r10', 'r8', 'r9']
 # TODO: Fix return type for built-in functions
 # TODO: Check types for built-in functions
 # TODO: Add generics
-# TODO: Add debug info into the generated assembly
+# TODO: Add more debug info into the generated assembly
 # TODO: Follow function calling convention
 # TODO: Optimize tail recursion
 # TODO: Add casting
+# TODO: Use stack for local variables
+# TODO: Handle constants apart from variables
 
 class Value:
     def __init__(self, typ, addr):
@@ -94,12 +96,14 @@ class Compiler:
 
         elif expr.op.name == 'var': # TODO: This should be handled by the parser as a diferent expression
             typ = expr.args[0].typ
+            mem_size = self.mem_size
+            self.mem_size += sizeof(typ)
             if typ is None:
                 raise Exception(f'{expr.pos}: Missing type at variable declaration')
             if self.debug:
-                self.print(f'; {expr.args[0].name}: [mem+{self.mem_size}]')
+                self.print(f'; {expr.args[0].name}: [mem+{mem_size}]')
             sz = asm_size_repr(sizeof(typ))
-            scope[expr.args[0].name] = Value(typ, f'{sz} [mem+{self.mem_size}]')
+            scope[expr.args[0].name] = Value(typ, f'{sz} [mem+{mem_size}]')
             if len(expr.args) == 2:
                 typ2 = self.get_type(expr.args[1], scope)
                 if typ2 is None:
@@ -107,13 +111,12 @@ class Compiler:
                 if typ != typ2:
                     raise Exception(f'{expr.pos}: Types don\'t match')
                 if self.debug:
-                    self.print(f'; {expr.args[0].name}: [mem+{self.mem_size}]')
+                    self.print(f'; {expr.args[0].name}: [mem+{mem_size}]')
                 self.compile(expr.args[1], scope)
                 if sizeof(typ) == 1:
-                    self.print(f'mov {sz} [mem+{self.mem_size}], al')
+                    self.print(f'mov {sz} [mem+{mem_size}], al')
                 else:
-                    self.print(f'mov {sz} [mem+{self.mem_size}], rax')
-            self.mem_size += sizeof(typ)
+                    self.print(f'mov {sz} [mem+{mem_size}], rax')
         elif expr.op.name == 'set':
             typ1 = self.get_type(expr.args[0], scope)
             typ2 = self.get_type(expr.args[1], scope)
@@ -126,20 +129,14 @@ class Compiler:
             else:
                 self.print(f'mov {scope[expr.args[0].name].value}, rax')
         elif expr.op.name == 'reserve':
-            if not isinstance(expr.args[0], IdentifierRef):
-                raise Exception('Expected expected identifier for memory reservation')
-            if not isinstance(expr.args[1], Literal) and not isinstance(expr.args[1], IdentifierRef):
+            if not isinstance(expr.args[0], Literal) and not isinstance(expr.args[0], IdentifierRef):
                 raise Exception('Expected expected constant amount for memory reservation')
-            scope[expr.args[0].name] = Value(Pointer(self.get_type(expr.args[1], scope)), f'qword [mem+{self.mem_size}]')
-            if self.debug:
-                self.print(f'; {expr.args[0].name}: [mem+{self.mem_size}]')
-            self.mem_size += sizeof(scope[expr.args[0].name].typ)
-            self.print(f'mov {scope[expr.args[0].name].value}, mem')
-            self.print(f'add {scope[expr.args[0].name].value}, {self.mem_size}')
-            if isinstance(expr.args[1], Literal):
-                self.mem_size += expr.args[1].value
+            self.print(f'mov rax, mem')
+            self.print(f'add rax, {self.mem_size}')
+            if isinstance(expr.args[0], Literal):
+                self.mem_size += expr.args[0].value
             else:
-                self.mem_size += int(scope[expr.args[1].name].value)
+                self.mem_size += int(scope[expr.args[0].name].value)
         elif expr.op.name == 'progn':
             for body_expr in expr.args:
                 self.compile(body_expr, scope)
@@ -276,6 +273,8 @@ class Compiler:
                 return self.get_type(expr.args[0], scope).typ
             elif expr.op.name == 'progn':
                 return self.get_type(expr.args[-1], scope)
+            elif expr.op.name == 'reserve':
+                return Pointer()
             else:
                 return Integer()
                 # TODO: Handle every keyword

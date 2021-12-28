@@ -59,7 +59,7 @@
 
 (def (print n:int)
   (def buf-size 20)
-  (reserve buf buf-size) ; TODO use stack instead
+  (var buf:ptr-char (reserve buf-size)) ; TODO use stack instead
   (var repr-len:int
     (repr buf-size buf n))
   (puts (+ buf (- buf-size repr-len)) repr-len)
