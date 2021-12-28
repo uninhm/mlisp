@@ -80,7 +80,16 @@ class Compiler:
             if not isinstance(expr.args[0], IdentifierRef):
                 raise Exception(f'{expr.pos}: Expected identifier')
             addr = scope[expr.args[0].name].value.split('[')[1][:-1] #TODO: So this better
-            self.print(f'mov rax, {addr}')
+            if '-' in addr:
+                a, b = addr.split('-')
+                self.print(f'mov rax, {a}')
+                self.print(f'sub rax, {b}')
+            else:
+                a, b = addr.split('+')
+                self.print(f'mov rax, {a}')
+                self.print(f'add rax, {b}')
+
+
         elif expr.op.name == 'var': # TODO: This should be handled by the parser as a diferent expression
             typ = expr.args[0].typ
             if typ is None:
@@ -315,6 +324,7 @@ class Compiler:
         elif isinstance(expr, If):
             self.compile_if(expr, scope)
         elif isinstance(expr, FunctionDefinition):
+            raise Exception('Can\'t define functions inside an expression')
             self.compile_function_definition(expr, scope, isinner=True)
         elif isinstance(expr, FunctionCall):
             if isinstance(expr.op, Keyword):
@@ -350,10 +360,22 @@ class Compiler:
         parser = Parser()
         with open(expr.path, 'r') as f:
             code = f.read()
+        #TODO: Do this more elegantly
+        exprs2 = []
         for pres in parser.parse(lexer.make_tokens(expr.path, code)):
             if pres.error:
                 raise Exception(f'{pres.error}')
-            self.compile(pres.result, scope)
+            expr = pres.result
+            if isinstance(expr, Include):
+                self.compile_include(expr, scope)
+            elif isinstance(expr, ConstantDefinition):
+                self.compile(expr, scope)
+            elif isinstance(expr, FunctionDefinition):
+                self.compile_function_definition(expr, scope)
+            else:
+                exprs2.append(expr)
+        for expr in exprs2:
+            self.compile(expr, scope)
 
     def compile_all(self, exprs):
         self.else_idx = 0
@@ -376,6 +398,8 @@ class Compiler:
         for expr in exprs:
             if isinstance(expr, Include):
                 self.compile_include(expr, global_scope)
+            elif isinstance(expr, ConstantDefinition):
+                self.compile(expr, global_scope)
             elif isinstance(expr, FunctionDefinition):
                 self.compile_function_definition(expr, global_scope)
             else:
