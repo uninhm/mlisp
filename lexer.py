@@ -6,7 +6,7 @@ KEYWORDS = {
     'if', 'cond', 'not',
     '+', '-', '*', '/', '=', '<', 'syscall',
     'progn', 'include', 'reserve', 'set', 'setp', 'getp', 'addr',
-    'var', '|', '&'
+    'var', '|', '&', 'tailrec'
 }
 
 class TokenType(Enum):
