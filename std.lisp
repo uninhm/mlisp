@@ -1,5 +1,6 @@
 (def SYS_read 0)
 (def SYS_write 1)
+(def SYS_close 3)
 (def SYS_openat 257)
 (def STDIN 0)
 (def STDOUT 1)
@@ -13,6 +14,9 @@
 
 (def (write fd:int buf:ptr-char count:int)
   (syscall SYS_write fd buf count))
+
+(def (close fd:int)
+  (syscall SYS_close fd))
 
 (def (puts s:ptr-char count:int)
   (write STDOUT s count))
