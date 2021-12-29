@@ -6,6 +6,14 @@
 (def STDOUT 1)
 (def STDERR 2)
 
+(def O_RDONLY 0)
+(def O_WRONLY 1)
+(def O_RDWR 2)
+(def O_CREAT 64)
+(def O_TRUNC 512)
+(def O_APPEND 1024)
+(def O_DIRECTORY 65536)
+
 (def (openat:int dfd:int path:ptr-char flags:int mode:int)
   (syscall SYS_openat dfd path flags mode))
 

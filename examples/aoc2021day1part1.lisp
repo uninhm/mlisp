@@ -1,11 +1,14 @@
 (include "std.lisp")
 
-(var fd:int (openat (- 100) "example_resources/aoc2021day1input" 0 440))
+(var dfd:int (openat (- 100) "example_resources" O_DIRECTORY 755))
+
+(var fd:int (openat dfd "aoc2021day1input" O_RDONLY 440))
 
 (def buf-size 9166) ; the file size plus 1
 (var buf:ptr-char (reserve buf-size))
 (read fd buf (- buf-size 1))
 (close fd)
+(close dfd)
 
 (var num-buf:ptr-char (reserve 10))
 (var ans:int 0)
