@@ -16,6 +16,7 @@ registers = ['rax', 'rdi', 'rsi', 'rdx', 'r10', 'r8', 'r9']
 # TODO: Change int to int64, add uint64, int32, int16, etc. Handle sizes in registers where needed.
 # TODO: Low priotiy: Add support for 128-bit integers
 # TODO: Save strings as struct (len + begin)
+# TODO: Implement structs
 
 class Value:
     def __init__(self, typ, addr):
