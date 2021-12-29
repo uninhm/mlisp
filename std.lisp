@@ -47,7 +47,7 @@
 
 ;; returns the length of the result
 (def (repr:int buf-size:int buf:ptr-char n:int)
-  (- buf-size (repr-iter buf (- buf-size 1) n)))
+  (- (- buf-size 1) (repr-iter buf (- buf-size 1) n)))
 
 (def (strip-iter buf:ptr-char i:int)
   (if (= (getp (+ buf i)) 10)
