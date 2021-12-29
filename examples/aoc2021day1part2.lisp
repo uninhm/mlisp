@@ -1,6 +1,6 @@
 (include "std.lisp")
 
-(var fd:int (openat (- 100) "aoc2021day1input" 0 440))
+(var fd:int (openat (- 100) "example_resources/aoc2021day1input" 0 440))
 
 (def buf-size 9166) ; the file size plus 1
 (var buf:ptr-char (reserve buf-size))
