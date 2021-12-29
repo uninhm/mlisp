@@ -361,12 +361,12 @@ class Compiler:
         else:
             raise Exception(f'Not implemented expression type: {type(expr)}')
 
-    def footer(self, nasm):
+    def footer(self):
         self.print('mov rax, 60')
         self.print('mov rdi, 0')
         self.print('syscall')
 
-        if nasm:
+        if self.nasm:
             self.print('section .data')
         else:
             self.print('segment readable')
@@ -375,40 +375,24 @@ class Compiler:
             cms = ','.join(str(ord(c)) for c in e)
             self.print(f'str_{i}: db {cms},0')
 
-        if nasm:
+        if self.nasm:
             self.print('section .bss')
-            self.print(f'mem: resb {self.mem_size}') # General memory
+            self.print(f'mem: resb {self.mem_size}')
         else:
             self.print('segment readable writable')
-            self.print(f'mem: rb {self.mem_size}') # General memory
+            self.print(f'mem: rb {self.mem_size}')
 
     def compile_include(self, expr, scope):
         lexer = Lexer()
         parser = Parser()
         with open(expr.path, 'r') as f:
             code = f.read()
-        #TODO: Do this more elegantly
-        exprs2 = []
+        exprs = []
         for pres in parser.parse(lexer.make_tokens(expr.path, code)):
             if pres.error:
                 raise Exception(f'{pres.error}')
-            expr = pres.result
-            if isinstance(expr, Include):
-                self.compile_include(expr, scope)
-            elif isinstance(expr, ConstantDefinition):
-                self.compile(expr, scope)
-            elif isinstance(expr, FunctionDefinition):
-                self.compile_function_definition(expr, scope)
-            elif isinstance(expr, FunctionCall) and expr.op.name == 'var' and len(expr.args) == 2:
-                self.declare_var(expr, scope)
-                exprs2.append(expr)
-            else:
-                exprs2.append(expr)
-        for expr in exprs2:
-            if isinstance(expr, FunctionCall) and expr.op.name == 'var':
-                self.set_var(expr, scope)
-            else:
-                self.compile(expr, scope)
+            exprs.append(pres.result)
+        self.exprs2.extend(self.compile_first_step(exprs, scope))
 
     def declare_var(self, expr, scope):
         typ = expr.args[0].typ
@@ -434,6 +418,38 @@ class Compiler:
         else:
             self.print(f'mov {scope[expr.args[0].name].value}, rax')
 
+    def header(self):
+        if self.nasm:
+            self.print('segment .text')
+        else:
+            self.print('format ELF64 executable 3')
+            self.print('segment readable executable')
+
+    def compile_first_step(self, exprs, scope):
+        exprs2 = []
+        for expr in exprs:
+            if isinstance(expr, Include):
+                self.compile_include(expr, scope)
+            elif isinstance(expr, ConstantDefinition):
+                self.compile(expr, scope)
+            elif isinstance(expr, FunctionDefinition):
+                self.compile_function_definition(expr, scope)
+            elif isinstance(expr, FunctionCall) and expr.op.name == 'var':
+                self.declare_var(expr, scope)
+                exprs2.append(expr)
+            else:
+                exprs2.append(expr)
+        return exprs2
+
+    def compile_second_step(self, exprs, scope):
+        for expr in exprs:
+            if isinstance(expr, FunctionCall) and\
+                    expr.op.name == 'var' and\
+                    len(expr.args) == 2:
+                self.set_var(expr, scope)
+            else:
+                self.compile(expr, scope)
+
     def compile_all(self, exprs):
         self.else_idx = 0
         self.end_idx = 0
@@ -442,39 +458,23 @@ class Compiler:
         self.mem_size = 0
         self.file = open('out.asm', 'w')
         self.str_literals = []
+        self.nasm = False
 
-        nasm = False
-        if nasm:
-            self.print('segment .text')
-        else:
-            self.print('format ELF64 executable 3')
-            self.print('segment readable executable')
+        self.header()
 
         global_scope = Scope()
-        exprs2 = []
-        for expr in exprs:
-            if isinstance(expr, Include):
-                self.compile_include(expr, global_scope)
-            elif isinstance(expr, ConstantDefinition):
-                self.compile(expr, global_scope)
-            elif isinstance(expr, FunctionDefinition):
-                self.compile_function_definition(expr, global_scope)
-            elif isinstance(expr, FunctionCall) and expr.op.name == 'var':
-                self.declare_var(expr, global_scope)
-                exprs2.append(expr)
-            else:
-                exprs2.append(expr)
 
-        if nasm:
+        self.exprs2 = []
+        exprs2 = self.compile_first_step(exprs, global_scope)
+        self.exprs2.extend(exprs2)
+
+        if self.nasm:
             self.print('global _start')
             self.print('_start:')
         else:
             self.print('entry start')
             self.print('start:')
 
-        for expr in exprs2:
-            if isinstance(expr, FunctionCall) and expr.op.name == 'var' and len(expr.args) == 2:
-                self.set_var(expr, global_scope)
-            else:
-                self.compile(expr, global_scope)
-        self.footer(nasm)
+        self.compile_second_step(self.exprs2, global_scope)
+
+        self.footer()
