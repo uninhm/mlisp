@@ -13,6 +13,8 @@ registers = ['rax', 'rdi', 'rsi', 'rdx', 'r10', 'r8', 'r9']
 # TODO: Add casting
 # TODO: Use stack for local variables
 # TODO: Handle constants apart from variables
+# TODO: Change int to int64, add uint64, int32, int16, etc. Handle sizes in registers where needed.
+# TODO: Low priotiy: Add support for 128-bit integers
 
 class Value:
     def __init__(self, typ, addr):
