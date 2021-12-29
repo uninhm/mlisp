@@ -92,14 +92,24 @@ class Compiler:
                 a, b = addr.split('+')
                 self.print(f'mov rax, {a}')
                 self.print(f'add rax, {b}')
-
-
+        elif expr.op.name == '|':
+            self.compile(expr.args[1], scope)
+            self.print('push rax')
+            self.compile(expr.args[0], scope)
+            self.print('pop rbx')
+            self.print('or rax, rbx')
+        elif expr.op.name == '&':
+            self.compile(expr.args[1], scope)
+            self.print('push rax')
+            self.compile(expr.args[0], scope)
+            self.print('pop rbx')
+            self.print('and rax, rbx')
         elif expr.op.name == 'var': # TODO: This should be handled by the parser as a diferent expression
             typ = expr.args[0].typ
-            mem_size = self.mem_size
-            self.mem_size += sizeof(typ)
             if typ is None:
                 raise Exception(f'{expr.pos}: Missing type at variable declaration')
+            mem_size = self.mem_size
+            self.mem_size += sizeof(typ)
             if self.debug:
                 self.print(f'; {expr.args[0].name}: [mem+{mem_size}]')
             sz = asm_size_repr(sizeof(typ))
@@ -269,8 +279,9 @@ class Compiler:
             elif expr.op.name == 'addr':
                 return Pointer(self.get_type(expr.args[0], scope))
             elif expr.op.name == 'getp':
-                assert isinstance(expr.args[0].typ, Pointer)
-                return self.get_type(expr.args[0], scope).typ
+                typ = self.get_type(expr.args[0], scope)
+                assert isinstance(typ, Pointer), f'{expr.pos}: got {expr.args[0]} of type {expr.args[0].typ}'
+                return typ.typ
             elif expr.op.name == 'progn':
                 return self.get_type(expr.args[-1], scope)
             elif expr.op.name == 'reserve':
@@ -386,10 +397,40 @@ class Compiler:
                 self.compile(expr, scope)
             elif isinstance(expr, FunctionDefinition):
                 self.compile_function_definition(expr, scope)
+            elif isinstance(expr, FunctionCall) and expr.op.name == 'var' and len(expr.args) == 2:
+                self.declare_var(expr, scope)
+                exprs2.append(expr)
             else:
                 exprs2.append(expr)
         for expr in exprs2:
-            self.compile(expr, scope)
+            if isinstance(expr, FunctionCall) and expr.op.name == 'var':
+                self.set_var(expr, scope)
+            else:
+                self.compile(expr, scope)
+
+    def declare_var(self, expr, scope):
+        typ = expr.args[0].typ
+        if typ is None:
+            raise Exception(f'{expr.pos}: Missing type at variable declaration')
+        mem_size = self.mem_size
+        self.mem_size += sizeof(typ)
+        if self.debug:
+            self.print(f'; {expr.args[0].name}: [mem+{mem_size}]')
+        sz = asm_size_repr(sizeof(typ))
+        scope[expr.args[0].name] = Value(typ, f'{sz} [mem+{mem_size}]')
+
+    def set_var(self, expr, scope):
+        typ = scope[expr.args[0].name].typ
+        typ2 = self.get_type(expr.args[1], scope)
+        if typ2 is None:
+            raise Exception(f'{expr.pos}: Undefined type')
+        if typ != typ2:
+            raise Exception(f'{expr.pos}: Types don\'t match')
+        self.compile(expr.args[1], scope)
+        if sizeof(typ) == 1:
+            self.print(f'mov {scope[expr.args[0].name].value}, al')
+        else:
+            self.print(f'mov {scope[expr.args[0].name].value}, rax')
 
     def compile_all(self, exprs):
         self.else_idx = 0
@@ -416,6 +457,9 @@ class Compiler:
                 self.compile(expr, global_scope)
             elif isinstance(expr, FunctionDefinition):
                 self.compile_function_definition(expr, global_scope)
+            elif isinstance(expr, FunctionCall) and expr.op.name == 'var':
+                self.declare_var(expr, global_scope)
+                exprs2.append(expr)
             else:
                 exprs2.append(expr)
 
@@ -427,5 +471,8 @@ class Compiler:
             self.print('start:')
 
         for expr in exprs2:
-            self.compile(expr, global_scope)
+            if isinstance(expr, FunctionCall) and expr.op.name == 'var' and len(expr.args) == 2:
+                self.set_var(expr, global_scope)
+            else:
+                self.compile(expr, global_scope)
         self.footer(nasm)

@@ -22,6 +22,8 @@
 
 (def (!=:int a:int b:int) (not (= a b)))
 (def (>=:int a:int b:int) (not (< a b)))
+(def (>:int a:int b:int) (& (>= a b) (!= a b)))
+(def (<=:int a:int b:int) (not (> a b)))
 
 (def (parseint-iter:int str:ptr-char i:int n:int)
   (if (= (getp (+ str i)) 0)
