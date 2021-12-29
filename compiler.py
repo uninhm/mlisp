@@ -390,7 +390,8 @@ class Compiler:
         exprs = []
         for pres in parser.parse(lexer.make_tokens(expr.path, code)):
             if pres.error:
-                raise Exception(f'{pres.error}')
+                print(pres.error)
+                exit(1)
             exprs.append(pres.result)
         self.exprs2.extend(self.compile_first_step(exprs, scope))
 

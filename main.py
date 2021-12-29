@@ -11,7 +11,7 @@ def main_file(file_name):
         for pres in parser.parse(tokens):
             if pres.error:
                 print(pres.error)
-                break
+                exit(1)
             else:
                 exprs.append(pres.result)
         else:
