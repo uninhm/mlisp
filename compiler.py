@@ -51,6 +51,11 @@ class Function:
         self.scope = scope
 
 class Compiler:
+    def __init__(self):
+        self.nasm = False
+        self.debug = False
+        self.output_filename = "out.asm"
+
     def print(self, msg):
         print(msg, file=self.file)
 
@@ -459,11 +464,9 @@ class Compiler:
         self.else_idx = 0
         self.end_idx = 0
         self.func_idx = 0
-        self.debug = True
         self.mem_size = 0
-        self.file = open('out.asm', 'w')
+        self.file = open(self.output_filename, 'w')
         self.str_literals = []
-        self.nasm = False
 
         self.header()
 

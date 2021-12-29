@@ -1,10 +1,14 @@
-from sys import argv, setrecursionlimit
+from sys import argv
 
-from lexer import Lexer, UnexpectedEOF
+from lexer import Lexer
 from parser import Parser
 from compiler import Compiler
 
+compiler = Compiler()
+
 def main_file(file_name):
+    lexer = Lexer()
+    parser = Parser()
     with open(file_name, 'r') as f:
         exprs = []
         tokens = lexer.make_tokens(file_name, f.read())
@@ -17,11 +21,32 @@ def main_file(file_name):
         else:
             compiler.compile_all(exprs)
 
-if __name__ == '__main__':
-    lexer = Lexer()
-    parser = Parser()
-    compiler = Compiler()
-    if len(argv) > 1:
-        main_file(argv[1])
+def usage():
+    print("Usage: python3 main.py [OPTIONS] <file>")
+    print("OPTIONS:")
+    print("  -nasm       Compile to NASM assembly instead of FASM")
+    print("  -debug      Add debug comments to the assembly")
+    print("  -o <file>   Compile to <file> instead of `out.asm`")
+
+def main():
+    i = 1
+    while i < len(argv):
+        if argv[i] == "-nasm":
+            compiler.nasm = True
+            i += 1
+        elif argv[i] == "-debug":
+            compiler.debug = True
+            i += 1
+        elif argv[i] == "-o":
+            i += 1
+            compiler.output_filename = argv[i]
+            i += 1
+        else:
+            main_file(argv[i])
+            break
     else:
+        usage()
         exit(1)
+
+if __name__ == '__main__':
+    main()
