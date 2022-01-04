@@ -15,23 +15,22 @@
 (var b:int 10000000000) ; TODO: make this INT_MAX or sth
 (var c:int 10000000000)
 
-(def (iter i:int)
-  (if (!= (+ 0 (getp buf)) 0)
-    (if (= (getp buf) 10)
-      (progn
-        (setp (+ num-buf i) 0)
-        (set n (parseint num-buf))
-        (if (> n a)
-          (set ans (+ ans 1)))
-        (set a b)
-        (set b c)
-        (set c n)
-        (set buf (+ buf 1))
-        (iter 0))
-      (progn
-        (setp (+ num-buf i) (getp buf))
-        (set buf (+ buf 1))
-        (iter (+ i 1))))))
+(var n:int)
+(var i:int)
+(while (!= (getp buf) 0)
+  (if (= (getp buf) 10)
+    (progn
+      (setp (+ num-buf i) 0)
+      (set n (parseint num-buf))
+      (if (> n a)
+        (set ans (+ ans 1)))
+      (set a b)
+      (set b c)
+      (set c n)
+      (set i 0))
+    (progn
+      (setp (+ num-buf i) (getp buf))
+      (set i (+ i 1))))
+  (set buf (+ buf 1)))
 
-(iter 0)
 (print ans)

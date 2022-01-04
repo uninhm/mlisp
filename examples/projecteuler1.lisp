@@ -1,12 +1,11 @@
 (include "std.lisp")
 
-(def (loop:int i:int total:int)
-  (if (= i 1000)
-    total
-    (if (= (% i 3) 0)
-      (loop (+ i 1) (+ total i))
-      (if (= (% i 5) 0)
-        (loop (+ i 1) (+ total i))
-        (loop (+ i 1) total)))))
+(var total:int 0)
+(var i:int 0)
 
-(print (loop 0 0))
+(while (< i 1000)
+  (if (| (= (% i 3) 0) (= (% i 5) 0))
+    (set total (+ total i)))
+  (set i (+ i 1)))
+
+(print total)
