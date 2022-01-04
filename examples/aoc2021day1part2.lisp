@@ -1,6 +1,6 @@
 (include "std.lisp")
 
-(var fd:i64 (openat (- 100) "example_resources/aoc2021day1input" 0 440))
+(var fd:int (openat (- 100) "example_resources/aoc2021day1input" 0 440))
 
 (def buf-size 9166) ; the file size plus 1
 (var buf:ptr-char (reserve buf-size))
@@ -8,15 +8,15 @@
 (close fd)
 
 (var num-buf:ptr-char (reserve 10))
-(var ans:i64 0)
+(var ans:int 0)
 
-(var n:i64)
-(var a:i64 10000000000) ; just a very big number
-(var b:i64 10000000000) ; TODO: make this INT_MAX or sth
-(var c:i64 10000000000)
+(var n:int)
+(var a:int 10000000000) ; just a very big number
+(var b:int 10000000000) ; TODO: make this INT_MAX or sth
+(var c:int 10000000000)
 
-(var n:i64)
-(var i:i64)
+(var n:int)
+(var i:int)
 (while (!= (getp buf) 0)
   (if (= (getp buf) 10)
     (progn

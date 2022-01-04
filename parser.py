@@ -1,6 +1,20 @@
 from lexer import TokenType
 from langtypes import *
 
+def type_class(s):
+    if s == None:
+        return None
+    if s == 'int':
+        return Integer()
+    elif s == 'char':
+        return Character()
+    elif s == 'ptr':
+        return Pointer()
+    elif s.startswith('ptr-'):
+        return Pointer(type_class(s[4:]))
+    else:
+        raise Exception("Unknown type class")
+
 class Param:
     def __init__(self, name, typ):
         self.name = name
@@ -184,11 +198,11 @@ class Parser:
                 return self.errorresult('function name expected')
 
             name = self.tok.value
-            ret_type = str_to_type(self.tok.typ)
+            ret_type = type_class(self.tok.typ)
             self.step()
             args = []
             while self.tok.check(TokenType.IDENTIFIER):
-                args.append(Param(self.tok.value, str_to_type(self.tok.typ)))
+                args.append(Param(self.tok.value, type_class(self.tok.typ)))
                 self.step()
 
             if not self.tok.check(TokenType.RIGHT_PAREN):
@@ -312,7 +326,7 @@ class Parser:
             tok = self.tok
             self.step()
             #TODO: Diferentiate between indentifier references and declarations
-            return ParseResult(IdentifierRef(tok.pos, str_to_type(tok.typ), tok.value))
+            return ParseResult(IdentifierRef(tok.pos, type_class(tok.typ), tok.value))
         elif self.tok.check(TokenType.KEYWORD):
             tok = self.tok
             self.step()
@@ -320,7 +334,7 @@ class Parser:
         elif self.tok.check(TokenType.NUMBER):
             tok = self.tok
             self.step()
-            return ParseResult(Literal(tok.pos, Integer(None, None), tok.value))
+            return ParseResult(Literal(tok.pos, Integer(), tok.value))
         elif self.tok.check(TokenType.STRING):
             tok = self.tok
             self.step()

@@ -1,6 +1,4 @@
 class Type:
-    size = 0
-
     def __eq__(self, other):
         return self.__class__ == other.__class__
 
@@ -14,9 +12,7 @@ class Pointer(Type):
         self.typ = typ
 
 class Integer(Type):
-    def __init__(self, signed, size):
-        self.signed = signed
-        self.size = size
+    size = 8
 
 class Character(Type):
     size = 1
@@ -35,17 +31,3 @@ def asm_size_repr(n):
         return 'qword'
     else:
         raise Exception('Unknown represetation for size: ' + str(n))
-
-def str_to_type(s):
-    if s == None:
-        return None
-    if s[0] in 'ui' and s[1:] in ('8', '16', '32', '64'):
-        return Integer(s[0] == 'i', int(s[1:])//8)
-    elif s == 'char':
-        return Character()
-    elif s == 'ptr':
-        return Pointer()
-    elif s.startswith('ptr-'):
-        return Pointer(str_to_type(s[4:]))
-    else:
-        raise Exception("Unknown type class")
