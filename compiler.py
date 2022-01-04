@@ -259,10 +259,10 @@ class Compiler:
             subscope[arg.name] = Value(arg.typ, f'{sz} [rbp+{offset+8-sizeof(arg.typ)}]')
             offset += 8 # sizeof(arg.typ)
         scope[expr.name] = Value('func', Function(expr.name, expr.ret_type, expr.args, func_idx, subscope))
-        if expr.ret_type is not None and self.get_type(expr.body[-1], subscope) != expr.ret_type:
-            raise Exception(f'{expr.pos}: Expected return type {expr.ret_type} but got {self.get_type(expr.body[-1], subscope)}')
         for body_expr in expr.body:
             self.compile(body_expr, subscope)
+        if expr.ret_type is not None and self.get_type(expr.body[-1], subscope) != expr.ret_type:
+            raise Exception(f'{expr.pos}: Expected return type {expr.ret_type} but got {self.get_type(expr.body[-1], subscope)}')
         self.print('pop rbp')
         self.print('ret')
         if isinner:
