@@ -116,28 +116,9 @@ class Compiler:
             self.print('pop rbx')
             self.print('and rax, rbx')
         elif expr.op.name == 'var': # TODO: This should be handled by the parser as a diferent expression
-            typ = expr.args[0].typ
-            if typ is None:
-                raise Exception(f'{expr.pos}: Missing type at variable declaration')
-            mem_size = self.mem_size
-            self.mem_size += sizeof(typ)
-            if self.debug:
-                self.print(f'; {expr.args[0].name}: [mem+{mem_size}]')
-            sz = asm_size_repr(sizeof(typ))
-            scope[expr.args[0].name] = Value(typ, f'{sz} [mem+{mem_size}]')
+            self.declare_var(expr, scope)
             if len(expr.args) == 2:
-                typ2 = self.get_type(expr.args[1], scope)
-                if typ2 is None:
-                    raise Exception(f'{expr.pos}: Undefined type')
-                if typ != typ2:
-                    raise Exception(f'{expr.pos}: Types don\'t match')
-                if self.debug:
-                    self.print(f'; {expr.args[0].name}: [mem+{mem_size}]')
-                self.compile(expr.args[1], scope)
-                if sizeof(typ) == 1:
-                    self.print(f'mov {sz} [mem+{mem_size}], al')
-                else:
-                    self.print(f'mov {sz} [mem+{mem_size}], rax')
+                self.set_var(expr, scope)
         elif expr.op.name == 'set':
             typ1 = self.get_type(expr.args[0], scope)
             typ2 = self.get_type(expr.args[1], scope)
