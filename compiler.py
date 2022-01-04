@@ -43,13 +43,12 @@ class Scope:
 
 
 class Function:
-    def __init__(self, name, ret_type, args, idx, scope, tailrec):
+    def __init__(self, name, ret_type, args, idx, scope):
         self.name = name
         self.ret_type = ret_type
         self.args = args
         self.idx = idx
         self.scope = scope
-        self.tailrec = tailrec
 
 class Compiler:
     def __init__(self):
@@ -247,8 +246,6 @@ class Compiler:
         self.print(f'end_{end_idx}:')
 
     def compile_function_definition(self, expr, scope, isinner=False):
-        if expr.tailrec and len(expr.args) != 0:
-            raise Exception(f'{expr.pos}: Tailrec functions cannot have arguments')
         func_idx = self.func_idx
         self.func_idx += 1
         end_idx = None
@@ -258,13 +255,10 @@ class Compiler:
         if self.debug:
             self.print(f'; ----- {expr.name} -----')
         self.print(f'func_{func_idx}:')
+        self.print('push rbp')
+        self.print('mov rbp, rsp')
         subscope = Scope(scope)
-        offset = 8
-        if len(expr.args) > 0:
-            self.print('push rbp')
-            self.print('mov rbp, rsp')
-            offset += 8
-
+        offset = 16
         for arg in expr.args:
             if arg.typ is None:
                 raise Exception('Expected type for argument')
@@ -273,13 +267,12 @@ class Compiler:
             sz = asm_size_repr(sizeof(arg.typ))
             subscope[arg.name] = Value(arg.typ, f'{sz} [rbp+{offset+8-sizeof(arg.typ)}]')
             offset += 8 # sizeof(arg.typ)
-        scope[expr.name] = Value('func', Function(expr.name, expr.ret_type, expr.args, func_idx, subscope, expr.tailrec))
+        scope[expr.name] = Value('func', Function(expr.name, expr.ret_type, expr.args, func_idx, subscope))
         if expr.ret_type is not None and self.get_type(expr.body[-1], subscope) != expr.ret_type:
             raise Exception(f'{expr.pos}: Expected return type {expr.ret_type} but got {self.get_type(expr.body[-1], subscope)}')
         for body_expr in expr.body:
             self.compile(body_expr, subscope)
-        if len(expr.args) > 0:
-            self.print('pop rbp')
+        self.print('pop rbp')
         self.print('ret')
         if isinner:
             self.print(f'end_{end_idx}:')
@@ -331,10 +324,7 @@ class Compiler:
                 raise Exception(f'{expr.pos}: Argument {i} expected {func.args[i].typ}, got {self.get_type(expr.args[i], scope)}')
             self.compile(expr.args[i], scope)
             self.print('push rax')
-        if func.tailrec and scope is func.scope:
-            self.print(f'jmp func_{func.idx}')
-        else:
-            self.print(f'call func_{func.idx}')
+        self.print(f'call func_{func.idx}')
         self.print(f'add rsp, {8*len(func.args)}')
 
     def compile(self, expr, scope):

@@ -49,13 +49,12 @@ class FunctionCall(Expression):
         )
 
 class FunctionDefinition(Expression):
-    def __init__(self, pos, name, ret_type, args, body, tailrec):
+    def __init__(self, pos, name, ret_type, args, body):
         super().__init__(pos)
         self.name = name
         self.ret_type = ret_type
         self.args = args
         self.body = body
-        self.tailrec = tailrec
 
     def __str__(self):
         return 'FunctionDefinition({name}, {args}, {body})'.format(
@@ -181,11 +180,6 @@ class Parser:
     def def_expr(self) -> ParseResult:
         pos = self.tok.pos
         self.step()
-        tailrec = False
-        while self.tok.check(TokenType.KEYWORD):
-            if self.tok.value == 'tailrec':
-                tailrec = True
-            self.step()
         if self.tok.check(TokenType.LEFT_PAREN): # it's a function
             self.step()
             if not self.tok.check(TokenType.IDENTIFIER):
@@ -216,7 +210,7 @@ class Parser:
 
             self.step()
 
-            return ParseResult(FunctionDefinition(pos, name, ret_type, args, body, tailrec))
+            return ParseResult(FunctionDefinition(pos, name, ret_type, args, body))
         elif self.tok.check(TokenType.IDENTIFIER): # it's a constant
             name = self.tok.value
             self.step()

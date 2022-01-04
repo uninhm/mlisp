@@ -1,2 +1,2 @@
 #!/bin/sh
-python main.py $@ && fasm out.asm > /dev/null && ./out
+python main.py $1 && fasm out.asm > /dev/null && ./out
