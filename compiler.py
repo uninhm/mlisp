@@ -13,7 +13,6 @@ registers = ['rax', 'rdi', 'rsi', 'rdx', 'r10', 'r8', 'r9']
 # TODO: Add casting
 # TODO: Use stack for local variables
 # TODO: Handle constants apart from variables
-# TODO: Change int to int64, add uint64, int32, int16, etc. Handle sizes in registers where needed.
 # TODO: Low priotiy: Add support for 128-bit integers
 # TODO: Save strings as struct (len + begin)
 # TODO: Implement structs
@@ -86,11 +85,16 @@ class Compiler:
             self.print('push rax')
             self.compile(expr.args[0], scope)
             self.print('pop rdi')
-            # TODO: Handle every possible size
             if sizeof(typ.typ) == 1:
-                self.print(f'mov {asm_size_repr(sizeof(typ.typ))} [rax], dil')
+                self.print(f'mov byte [rax], dil')
+            elif sizeof(typ.typ) == 2:
+                self.print(f'mov word [rax], di')
+            elif sizeof(typ.typ) == 4:
+                self.print(f'mov dword {asm_size_repr(4)} [rax], edi')
+            elif sizeof(typ.typ) == 8:
+                self.print(f'mov qword {asm_size_repr(8)} [rax], rdi')
             else:
-                self.print(f'mov {asm_size_repr(sizeof(typ.typ))} [rax], rdi')
+                raise Exception(f'{expr.pos}: Unsupported size: {sizeof(typ.typ)}')
         elif expr.op.name == 'addr':
             if not isinstance(expr.args[0], IdentifierRef):
                 raise Exception(f'{expr.pos}: Expected identifier')
@@ -125,11 +129,16 @@ class Compiler:
             if typ1 != typ2:
                 raise Exception(f'{expr.pos}: Expected {typ1} but got {typ2}')
             self.compile(expr.args[1], scope)
-            # TODO: Handle every possible size
             if sizeof(typ1) == 1:
                 self.print(f'mov {scope[expr.args[0].name].value}, al')
-            else:
+            elif sizeof(typ1) == 2:
+                self.print(f'mov {scope[expr.args[0].name].value}, ax')
+            elif sizeof(typ1) == 4:
+                self.print(f'mov {scope[expr.args[0].name].value}, eax')
+            elif sizeof(typ1) == 8:
                 self.print(f'mov {scope[expr.args[0].name].value}, rax')
+            else:
+                raise Exception(f'{expr.pos}: Unsupported size: {sizeof(typ1)}')
         elif expr.op.name == 'reserve':
             if not isinstance(expr.args[0], Literal) and not isinstance(expr.args[0], IdentifierRef):
                 raise Exception('Expected expected constant amount for memory reservation')
@@ -277,7 +286,7 @@ class Compiler:
             if expr.op.name in ('+', '-', '*', '/', '%'):
                 return self.get_type(expr.args[0], scope)
             elif expr.op.name in ('print', '<', '=', 'not'):
-                return Integer()
+                return Integer(False, 1)
             elif expr.op.name == 'addr':
                 return Pointer(self.get_type(expr.args[0], scope))
             elif expr.op.name == 'getp':
@@ -289,7 +298,7 @@ class Compiler:
             elif expr.op.name == 'reserve':
                 return Pointer()
             else:
-                return Integer()
+                return Integer(None, None)
                 # TODO: Handle every keyword
                 # raise Exception(f'Unknown type for keyword: {expr.op.name}')
         elif isinstance(expr, FunctionCall):
