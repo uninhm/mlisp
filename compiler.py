@@ -181,6 +181,16 @@ class Compiler:
             self.print('cmp rax, rbx')
             self.print('cmove rcx, rdx')
             self.print('mov rax, rcx')
+        elif expr.op.name == '!=':
+            self.compile(expr.args[1], scope)
+            self.print(f'push rax')
+            self.compile(expr.args[0], scope)
+            self.print('pop rbx')
+            self.print('mov rcx, 0')
+            self.print('mov rdx, 1')
+            self.print('cmp rax, rbx')
+            self.print('cmovne rcx, rdx')
+            self.print('mov rax, rcx')
         elif expr.op.name == '-':
             if len(expr.args) == 1:
                 self.compile(expr.args[0], scope)

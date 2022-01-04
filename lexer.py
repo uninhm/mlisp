@@ -4,7 +4,7 @@ from dataclasses import dataclass
 KEYWORDS = {
     '%', 'def',
     'if', 'cond', 'not',
-    '+', '-', '*', '/', '=', '<', 'syscall',
+    '+', '-', '*', '/', '=', '!=', '<', 'syscall',
     'progn', 'include', 'reserve', 'set', 'setp', 'getp', 'addr',
     'var', '|', '&', 'while'
 }
