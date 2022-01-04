@@ -88,6 +88,18 @@ class IdentifierRef(Expression):
             name=self.name
         )
 
+class WhileLoop(Expression):
+    def __init__(self, pos, condition, body):
+        super().__init__(pos)
+        self.cond = condition
+        self.body = body
+
+    def __str__(self):
+        return 'WhileLoop({condition}, {body})'.format(
+            condition=self.cond,
+            body=self.body
+        )
+
 class Keyword(Expression):
     def __init__(self, pos, name):
         super().__init__(pos)
@@ -266,6 +278,25 @@ class Parser:
         self.step()
         return ParseResult(Include(pos, filename))
 
+    def while_loop(self):
+        pos = self.tok.pos
+        self.step()
+
+        condition = self.expr()
+        if condition.error:
+            return condition
+
+        body = []
+        while not self.tok.check(TokenType.RIGHT_PAREN):
+            e = self.expr()
+            if e.error:
+                return e
+            body.append(e.result)
+
+        self.step()
+
+        return ParseResult(WhileLoop(pos, condition.result, body))
+
     def expr(self) -> ParseResult:
         if self.tok.check(TokenType.LEFT_PAREN):
             self.step()
@@ -277,6 +308,8 @@ class Parser:
                 return self.cond_expr()
             elif self.tok.value == 'include':
                 return self.include_expr()
+            elif self.tok.value == 'while':
+                return self.while_loop()
             pos = self.tok.pos
             op = self.expr()
             if op.error:

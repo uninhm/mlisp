@@ -1,5 +1,5 @@
 from lexer import Lexer
-from parser import ConstantDefinition, Parser, FunctionDefinition, IdentifierRef, Literal, FunctionCall, Keyword, If, Include
+from parser import ConstantDefinition, Parser, FunctionDefinition, IdentifierRef, Literal, FunctionCall, Keyword, If, Include, WhileLoop
 from langtypes import *
 
 registers = ['rax', 'rdi', 'rsi', 'rdx', 'r10', 'r8', 'r9']
@@ -229,10 +229,10 @@ class Compiler:
             raise Exception(f'Unknown keyword: {expr.op.name}')
 
     def compile_if(self, expr, scope):
-        else_idx = self.else_idx
-        self.else_idx += 1
-        end_idx = self.end_idx
-        self.end_idx += 1
+        else_idx = self.idx
+        self.idx += 1
+        end_idx = self.idx
+        self.idx += 1
 
         self.compile(expr.cond, scope)
         self.print(f'test rax, rax')
@@ -246,12 +246,12 @@ class Compiler:
         self.print(f'end_{end_idx}:')
 
     def compile_function_definition(self, expr, scope, isinner=False):
-        func_idx = self.func_idx
-        self.func_idx += 1
+        func_idx = self.idx
+        self.idx += 1
         end_idx = None
         if isinner:
-            end_idx = self.end_idx
-            self.end_idx += 1
+            end_idx = self.idx
+            self.idx += 1
         if self.debug:
             self.print(f'; ----- {expr.name} -----')
         self.print(f'func_{func_idx}:')
@@ -327,6 +327,19 @@ class Compiler:
         self.print(f'call func_{func.idx}')
         self.print(f'add rsp, {8*len(func.args)}')
 
+    def compile_while_loop(self, expr, scope):
+        start_idx = self.idx
+        end_idx = self.idx + 1
+        self.idx += 2
+        self.print(f'while_{start_idx}:')
+        self.compile(expr.cond, scope)
+        self.print('test rax, rax')
+        self.print('jz end_{}'.format(end_idx))
+        for body_expr in expr.body:
+            self.compile(body_expr, scope)
+        self.print(f'jmp while_{start_idx}')
+        self.print(f'end_{end_idx}:')
+
     def compile(self, expr, scope):
         """
         Compile an expression into assembly code,
@@ -361,12 +374,14 @@ class Compiler:
             self.compile_if(expr, scope)
         elif isinstance(expr, FunctionDefinition):
             raise Exception('Can\'t define functions inside an expression')
-            self.compile_function_definition(expr, scope, isinner=True)
+            # self.compile_function_definition(expr, scope, isinner=True)
         elif isinstance(expr, FunctionCall):
             if isinstance(expr.op, Keyword):
                 self.handle_keyword(expr, scope)
             else:
                 self.compile_function_call(expr, scope)
+        elif isinstance(expr, WhileLoop):
+            self.compile_while_loop(expr, scope)
         else:
             raise Exception(f'Not implemented expression type: {type(expr)}')
 
@@ -461,9 +476,7 @@ class Compiler:
                 self.compile(expr, scope)
 
     def compile_all(self, exprs):
-        self.else_idx = 0
-        self.end_idx = 0
-        self.func_idx = 0
+        self.idx = 0
         self.mem_size = 0
         self.file = open(self.output_filename, 'w')
         self.str_literals = []
