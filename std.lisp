@@ -32,42 +32,31 @@
 (def (input buf:ptr-char count:int)
   (read STDIN buf count))
 
-(def (!=:int a:int b:int) (not (= a b)))
 (def (>=:int a:int b:int) (not (< a b)))
 (def (>:int a:int b:int) (& (>= a b) (!= a b)))
 (def (<=:int a:int b:int) (not (> a b)))
 
-(def (parseint-iter:int str:ptr-char i:int n:int)
-  (if (= (getp (+ str i)) 0)
-    n
-    (parseint-iter str
-          (+ i 1)
-          (+ (* n 10)
-             (- (getp (+ str i)) ?0)))))
-
 (def (parseint:int str:ptr-char)
-  (parseint-iter str 0 0))
-
-(def (repr-iter:int buf:ptr-char i:int n:int)
-  (if (= n 0)
-    i
-    (progn
-      (setp (+ buf i) (+ ?0 (% n 10)))
-      (repr-iter buf
-            (- i 1)
-            (/ n 10)))))
+  (var n:int 0)
+  (while (!= (getp str) 0)
+    (set n (+ (* n 10)
+              (- (getp str) ?0)))
+    (set str (+ str 1)))
+  n)
 
 ;; returns the length of the result
 (def (repr:int buf-size:int buf:ptr-char n:int)
-  (- (- buf-size 1) (repr-iter buf (- buf-size 1) n)))
-
-(def (strip-iter buf:ptr-char i:int)
-  (if (= (getp (+ buf i)) 10)
-    (setp (+ buf i) 0)
-    (strip-iter buf (+ i 1))))
+  (var i:int 1)
+  (while (!= n 0)
+    (setp (+ buf (- buf-size i)) (+ ?0 (% n 10)))
+    (set n (/ n 10))
+    (set i (+ i 1)))
+  (- i 1))
 
 (def (strip buf:ptr-char)
-  (strip-iter buf 0))
+  (while (!= (getp buf) 10)
+    (set buf (+ buf 1)))
+  (setp buf 0))
 
 (def (even?:int n:int) (= (% n 2) 0))
 
