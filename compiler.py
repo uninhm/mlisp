@@ -460,9 +460,9 @@ class Compiler:
     def compile_second_step(self, exprs, scope):
         for expr in exprs:
             if isinstance(expr, FunctionCall) and\
-                    expr.op.name == 'var' and\
-                    len(expr.args) == 2:
-                self.set_var(expr, scope)
+                    expr.op.name == 'var':
+                if len(expr.args) == 2:
+                    self.set_var(expr, scope)
             else:
                 self.compile(expr, scope)
 
