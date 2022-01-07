@@ -17,6 +17,7 @@ registers = ['rax', 'rdi', 'rsi', 'rdx', 'r10', 'r8', 'r9']
 # TODO: Save strings as struct (len + begin)
 # TODO: Implement structs
 # TODO: Add negative literals
+
 # TODO: Accept basic operations on constants
 
 class Value:
@@ -68,6 +69,35 @@ class Compiler:
         self.nasm = False
         self.debug = False
         self.output_filename = "out.asm"
+
+    def constant_evaluate(self, expr, scope):
+        if isinstance(expr, Literal):
+            return expr.value
+        elif isinstance(expr, IdentifierRef):
+            return scope.get_constant(expr.name).value
+        elif isinstance(expr, FunctionCall):
+            if expr.op == '+':
+                return self.constant_evaluate(expr.args[0], scope) + self.constant_evaluate(expr.args[1], scope)
+            elif expr.op == '-':
+                return self.constant_evaluate(expr.args[0], scope) - self.constant_evaluate(expr.args[1], scope)
+            elif expr.op == '*':
+                return self.constant_evaluate(expr.args[0], scope) * self.constant_evaluate(expr.args[1], scope)
+            elif expr.op == '/':
+                return self.constant_evaluate(expr.args[0], scope) // self.constant_evaluate(expr.args[1], scope)
+            elif expr.op == '%':
+                return self.constant_evaluate(expr.args[0], scope) % self.constant_evaluate(expr.args[1], scope)
+            elif expr.op == '==':
+                return self.constant_evaluate(expr.args[0], scope) == self.constant_evaluate(expr.args[1], scope)
+            elif expr.op == '!=':
+                return self.constant_evaluate(expr.args[0], scope) != self.constant_evaluate(expr.args[1], scope)
+            elif expr.op == '<':
+                return self.constant_evaluate(expr.args[0], scope) < self.constant_evaluate(expr.args[1], scope)
+            elif expr.op == '&':
+                return self.constant_evaluate(expr.args[0], scope) & self.constant_evaluate(expr.args[1], scope)
+            elif expr.op == '|':
+                return self.constant_evaluate(expr.args[0], scope) | self.constant_evaluate(expr.args[1], scope)
+        else:
+            raise Exception(f'{expr.pos}: Could not evaluate at compile time')
 
     def print(self, msg):
         print(msg, file=self.file)
@@ -146,10 +176,9 @@ class Compiler:
         elif expr.op.name == 'reserve':
             self.print(f'mov rax, mem')
             self.print(f'add rax, {self.mem_size}')
-            if isinstance(expr.args[0], Literal):
-                self.mem_size += expr.args[0].value
-            else:
-                self.mem_size += int(scope.get_constant(expr.args[0].name).value)
+            arg = self.constant_evaluate(expr.args[0], scope)
+            assert isinstance(arg, int)
+            self.mem_size += arg
         elif expr.op.name == 'progn':
             for body_expr in expr.args:
                 self.compile(body_expr, scope)
@@ -361,7 +390,7 @@ class Compiler:
             else:
                 raise Exception(f'Unsupported literal type: {type(expr.value)}')
         elif isinstance(expr, ConstantDefinition):
-            scope.set_constant(expr.name, Value(expr.value.typ, f'{expr.value.value}'))
+            scope.set_constant(expr.name, Value(expr.value.typ, expr.value.value))
         elif isinstance(expr, IdentifierRef):
             if scope is None:
                 raise Exception('IdentifierRef without scope')

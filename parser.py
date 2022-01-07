@@ -229,8 +229,6 @@ class Parser:
             value = self.expr()
             if value.error:
                 return value
-            if not isinstance(value.result, Literal):
-                return self.errorresult('Only literals can be constants for now')
             if not self.tok.check(TokenType.RIGHT_PAREN):
                 return self.errorresult('`)` expected after constant definition')
             self.step()
