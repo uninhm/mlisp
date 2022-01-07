@@ -12,7 +12,6 @@ registers = ['rax', 'rdi', 'rsi', 'rdx', 'r10', 'r8', 'r9']
 # TODO: Optimize tail recursion
 # TODO: Add casting
 # TODO: Use stack for local variables
-# TODO: Handle constants apart from variables
 # TODO: Change int to int64, add uint64, int32, int16, etc. Handle sizes in registers where needed.
 # TODO: Low priotiy: Add support for 128-bit integers
 # TODO: Save strings as struct (len + begin)
@@ -28,10 +27,13 @@ class Value:
 class Scope:
     def __init__(self, parent=None):
         self.parent = parent
+        self.constants = {}
         self.data = {}
 
     def __getitem__(self, key):
-        if key in self.data:
+        if key in self.constants:
+            return self.constants[key]
+        elif key in self.data:
             return self.data[key]
         elif self.parent:
             return self.parent[key]
@@ -40,6 +42,17 @@ class Scope:
 
     def __setitem__(self, key, value):
         self.data[key] = value
+
+    def get_constant(self, key):
+        if key in self.constants:
+            return self.constants[key]
+        elif self.parent:
+            return self.parent.get_constant(key)
+        else:
+            raise Exception('Undefined constant: ' + key)
+
+    def set_constant(self, key, value):
+        self.constants[key] = value
 
 
 class Function:
@@ -131,14 +144,12 @@ class Compiler:
             else:
                 self.print(f'mov {scope[expr.args[0].name].value}, rax')
         elif expr.op.name == 'reserve':
-            if not isinstance(expr.args[0], Literal) and not isinstance(expr.args[0], IdentifierRef):
-                raise Exception('Expected expected constant amount for memory reservation')
             self.print(f'mov rax, mem')
             self.print(f'add rax, {self.mem_size}')
             if isinstance(expr.args[0], Literal):
                 self.mem_size += expr.args[0].value
             else:
-                self.mem_size += int(scope[expr.args[0].name].value)
+                self.mem_size += int(scope.get_constant(expr.args[0].name).value)
         elif expr.op.name == 'progn':
             for body_expr in expr.args:
                 self.compile(body_expr, scope)
@@ -350,7 +361,7 @@ class Compiler:
             else:
                 raise Exception(f'Unsupported literal type: {type(expr.value)}')
         elif isinstance(expr, ConstantDefinition):
-            scope[expr.name] = Value(expr.value.typ, f'{expr.value.value}')
+            scope.set_constant(expr.name, Value(expr.value.typ, f'{expr.value.value}'))
         elif isinstance(expr, IdentifierRef):
             if scope is None:
                 raise Exception('IdentifierRef without scope')
