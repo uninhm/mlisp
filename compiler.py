@@ -285,6 +285,8 @@ class Compiler:
             self.idx += 1
         if self.debug:
             self.print(f'; ----- {expr.name} -----')
+        if isinner:
+            self.print(f'jmp end_{end_idx}')
         self.print(f'func_{func_idx}:')
         self.print('push rbp')
         self.print('mov rbp, rsp')
@@ -404,8 +406,8 @@ class Compiler:
         elif isinstance(expr, If):
             self.compile_if(expr, scope)
         elif isinstance(expr, FunctionDefinition):
-            raise Exception('Can\'t define functions inside an expression')
-            # self.compile_function_definition(expr, scope, isinner=True)
+            # raise Exception('Can\'t define functions inside an expression')
+            self.compile_function_definition(expr, scope, isinner=True)
         elif isinstance(expr, FunctionCall):
             if isinstance(expr.op, Keyword):
                 self.handle_keyword(expr, scope)
